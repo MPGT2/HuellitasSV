@@ -68,6 +68,16 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Las claves se declaran explícitamente porque nuestras propiedades usan el formato
+        // "IdXxx", que no coincide con la convención automática de EF Core ("Id" o "XxxId").
+        modelBuilder.Entity<Usuario>().HasKey(u => u.IdUsuario);
+        modelBuilder.Entity<Refugio>().HasKey(r => r.IdRefugio);
+        modelBuilder.Entity<Mascota>().HasKey(m => m.IdMascota);
+        modelBuilder.Entity<NecesidadDonacion>().HasKey(n => n.IdNecesidad);
+        modelBuilder.Entity<SolicitudAdopcion>().HasKey(s => s.IdSolicitud);
+        modelBuilder.Entity<Notificacion>().HasKey(n => n.IdNotificacion);
+        modelBuilder.Entity<ReporteAnimal>().HasKey(r => r.IdReporte);
+
         modelBuilder.Entity<Usuario>(entity =>
         {
             entity.HasIndex(u => u.Correo).IsUnique();

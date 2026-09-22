@@ -1,6 +1,130 @@
 @HuellitasSV.API_HostAddress = http://localhost:5299
 
-GET {{HuellitasSV.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### ============================================================
+### HU-7: Envío de Solicitud de Adopción
+### ============================================================
 
-###
+# Enviar solicitud de adopción (se crea en estado "Pendiente" y notifica al refugio)
+POST {{HuellitasSV.API_HostAddress}}/api/solicitudesadopcion
+Content-Type: application/json
+
+{
+  "idMascota": 1,
+  "idUsuario": 1,
+  "nombreContacto": "Alfredo López",
+  "telefonoContacto": "7777-7777",
+  "correoContacto": "alfredo@correo.com"
+}
+
+### Repetir la misma solicitud -> debe responder 409 Conflict
+# POST {{HuellitasSV.API_HostAddress}}/api/solicitudesadopcion
+# Content-Type: application/json
+#
+# {
+#   "idMascota": 1,
+#   "idUsuario": 1,
+#   "nombreContacto": "Alfredo López",
+#   "telefonoContacto": "7777-7777",
+#   "correoContacto": "alfredo@correo.com"
+# }
+
+### Consultar el estado de una solicitud
+GET {{HuellitasSV.API_HostAddress}}/api/solicitudesadopcion/1
+
+### ============================================================
+### HU-8: Gestión de solicitudes de adopción (Refugio)
+### ============================================================
+
+# Panel del refugio: solicitudes recibidas (estado, mascota y datos del solicitante)
+GET {{HuellitasSV.API_HostAddress}}/api/gestionsolicitudes?refugioId=1&estado=Pendiente
+
+# Aprobar solicitud: cambia la mascota a "EnProcesoAdopcion" y notifica al usuario
+PUT {{HuellitasSV.API_HostAddress}}/api/gestionsolicitudes/1/aprobar
+Content-Type: application/json
+
+{
+  "idRefugio": 1,
+  "comentarioDecision": "Aprobado después de la visita al refugio"
+}
+
+### Rechazar solicitud: notifica al usuario y deja la mascota disponible
+# PUT {{HuellitasSV.API_HostAddress}}/api/gestionsolicitudes/2/rechazar
+# Content-Type: application/json
+#
+# {
+#   "idRefugio": 1,
+#   "comentarioDecision": "No cumple los requisitos de adopción"
+# }
+
+### ============================================================
+### HU-14: Creación de Reporte de Animal Callejero
+### ============================================================
+
+# Crear reporte con ubicación (notifica a los refugios a menos de 5 km)
+POST {{HuellitasSV.API_HostAddress}}/api/reportesanimales
+Content-Type: application/json
+
+{
+  "idUsuario": 1,
+  "descripcion": "Cachorro perdido junto al parque, parece asustado y sin collar",
+  "fotoUrl": "https://ejemplo.com/fotos/cachorro.jpg",
+  "latitud": 13.6929,
+  "longitud": -89.2182
+}
+
+### Enviar reporte SIN ubicación -> debe responder 400 y exigir el dato
+# POST {{HuellitasSV.API_HostAddress}}/api/reportesanimales
+# Content-Type: application/json
+#
+# {
+#   "idUsuario": 1,
+#   "descripcion": "Gato callejero en la esquina",
+#   "fotoUrl": "https://ejemplo.com/fotos/gato.jpg"
+# }
+
+### Consultar un reporte creado
+GET {{HuellitasSV.API_HostAddress}}/api/reportesanimales/1
+
+### ============================================================
+### HU-15: Recepción de Reportes de Rescate (panel del refugio)
+### ============================================================
+
+# Lista de reportes pendientes cerca del refugio (foto, ubicación y estado)
+GET {{HuellitasSV.API_HostAddress}}/api/reportesrescate?refugioId=1&estado=Pendiente
+
+# Marcar reporte como atendido (lo retira de la lista de pendientes)
+PUT {{HuellitasSV.API_HostAddress}}/api/reportesrescate/1/atendido
+Content-Type: application/json
+
+{
+  "idRefugio": 1
+}
+
+### ============================================================
+### Notificaciones (HU-7, HU-8 y HU-14)
+### ============================================================
+
+# Notificaciones del refugio
+GET {{HuellitasSV.API_HostAddress}}/api/notificaciones?refugioId=1
+
+# Notificaciones del usuario
+GET {{HuellitasSV.API_HostAddress}}/api/notificaciones?usuarioId=1
+
+# Marcar notificación como leída
+PUT {{HuellitasSV.API_HostAddress}}/api/notificaciones/1/leida
+
+### ============================================================
+### Usuarios (estructura base existente)
+### ============================================================
+
+GET {{HuellitasSV.API_HostAddress}}/api/usuarios
+
+POST {{HuellitasSV.API_HostAddress}}/api/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Alfredo López",
+  "correo": "alfredo@correo.com",
+  "telefono": "7777-7777",
+  "contrasena": "Secreta123"
+}
