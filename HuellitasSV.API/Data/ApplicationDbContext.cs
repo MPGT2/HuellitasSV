@@ -46,6 +46,16 @@ public class ApplicationDbContext : DbContext
     public DbSet<NecesidadDonacion> NecesidadesDonacion { get; set; } = null!;
 
     /// <summary>
+    /// Conjunto de solicitudes de adopción enviadas por los usuarios.
+    /// </summary>
+    public DbSet<SolicitudAdopcion> SolicitudesAdopcion { get; set; } = null!;
+
+    /// <summary>
+    /// Conjunto de notificaciones enviadas a refugios y usuarios.
+    /// </summary>
+    public DbSet<Notificacion> Notificaciones { get; set; } = null!;
+
+    /// <summary>
     /// Configura el modelo de datos, relaciones y restricciones de precisión para SQL Server.
     /// </summary>
     /// <param name="modelBuilder">Constructor del modelo de Entity Framework.</param>
@@ -82,6 +92,39 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(n => n.Refugio)
                 .WithMany(r => r.NecesidadesDonacion)
                 .HasForeignKey(n => n.IdRefugio)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SolicitudAdopcion>(entity =>
+        {
+            // El estado se almacena como texto ("Pendiente", "Aprobada", "Rechazada").
+            entity.Property(s => s.Estado)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.HasOne(s => s.Mascota)
+                .WithMany()
+                .HasForeignKey(s => s.IdMascota)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.Usuario)
+                .WithMany()
+                .HasForeignKey(s => s.IdUsuario)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Notificacion>(entity =>
+        {
+            entity.Property(n => n.Mensaje).HasMaxLength(500);
+
+            entity.HasOne(n => n.Refugio)
+                .WithMany()
+                .HasForeignKey(n => n.IdRefugio)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(n => n.Usuario)
+                .WithMany()
+                .HasForeignKey(n => n.IdUsuario)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
