@@ -1,88 +1,51 @@
-using HuellitasSV.API.Models;
-using Microsoft.EntityFrameworkCore;
+// [HU-10] Michael Menendez: Estructura base - Contexto de base de datos (Entity Framework Core).
+// Configura índices y la relación Mascota -> Refugio con borrado restrictivo.
 
 namespace HuellitasSV.API.Data;
 
+using Microsoft.EntityFrameworkCore;
+using HuellitasSV.API.Models;
+
 /// <summary>
-/// Contexto de base de datos de la aplicación HuellitasSV.
-/// Administra el acceso a las entidades mediante Entity Framework Core.
+/// Contexto de base de datos de HuellitasSV.
 /// </summary>
 public class ApplicationDbContext : DbContext
 {
     /// <summary>
-    /// Inicializa una nueva instancia vacía de <see cref="ApplicationDbContext"/>.
+    /// Inicializa el contexto con las opciones de conexión.
     /// </summary>
-    public ApplicationDbContext()
-    {
-    }
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
+    /// <summary>Conjunto de mascotas (tabla mascota).</summary>
+    public DbSet<Mascota> Mascota { get; set; }
+
+    /// <summary>Conjunto de refugios (tabla refugio).</summary>
+    public DbSet<Refugio> Refugio { get; set; }
 
     /// <summary>
-    /// Inicializa una nueva instancia de <see cref="ApplicationDbContext"/> con las opciones configuradas.
+    /// Modelado de índices y relaciones.
     /// </summary>
-    /// <param name="options">Opciones de configuración del contexto.</param>
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
-
-    /// <summary>
-    /// Conjunto de usuarios registrados en el sistema.
-    /// </summary>
-    public DbSet<Usuario> Usuarios { get; set; } = null!;
-
-    /// <summary>
-    /// Conjunto de refugios registrados en el sistema.
-    /// </summary>
-    public DbSet<Refugio> Refugios { get; set; } = null!;
-
-    /// <summary>
-    /// Conjunto de mascotas publicadas para adopción o rescate.
-    /// </summary>
-    public DbSet<Mascota> Mascotas { get; set; } = null!;
-
-    /// <summary>
-    /// Conjunto de necesidades de donación publicadas por los refugios.
-    /// </summary>
-    public DbSet<NecesidadDonacion> NecesidadesDonacion { get; set; } = null!;
-
-    /// <summary>
-    /// Configura el modelo de datos, relaciones y restricciones de precisión para SQL Server.
-    /// </summary>
-    /// <param name="modelBuilder">Constructor del modelo de Entity Framework.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Usuario>(entity =>
+        modelBuilder.Entity<Mascota>(entity =>
         {
-            entity.HasIndex(u => u.Correo).IsUnique();
+            // Índices para las consultas más frecuentes: estado y refugio.
+            entity.HasIndex(m => m.Estado);
+            entity.HasIndex(m => m.IdRefugio);
+
+            // Una mascota pertenece a un refugio; no se permite borrar un refugio con mascotas.
+            entity.HasOne(m => m.Refugio)
+                .WithMany()
+                .HasForeignKey(m => m.IdRefugio)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Refugio>(entity =>
         {
-            entity.HasOne(r => r.Usuario)
-                .WithOne(u => u.Refugio)
-                .HasForeignKey<Refugio>(r => r.IdUsuario)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<Mascota>(entity =>
-        {
-            entity.HasOne(m => m.Refugio)
-                .WithMany(r => r.Mascotas)
-                .HasForeignKey(m => m.IdRefugio)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<NecesidadDonacion>(entity =>
-        {
-            entity.Property(n => n.CantidadRequerida).HasPrecision(18, 2);
-            entity.Property(n => n.CantidadCubierta).HasPrecision(18, 2);
-
-            entity.HasOne(n => n.Refugio)
-                .WithMany(r => r.NecesidadesDonacion)
-                .HasForeignKey(n => n.IdRefugio)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Facilita el filtrado por estado de aprobación.
+            entity.HasIndex(r => r.EstadoAprobacion);
         });
     }
 }

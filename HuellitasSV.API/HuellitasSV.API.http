@@ -1,6 +1,47 @@
-@HuellitasSV.API_HostAddress = http://localhost:5299
+@Host = http://localhost:5299
 
-GET {{HuellitasSV.API_HostAddress}}/weatherforecast/
+### [HU-4] Listar mascotas disponibles por especie
+GET {{Host}}/api/Mascotas/especie/perro
 Accept: application/json
 
-###
+### [HU-5] Filtrar mascotas por atributos
+GET {{Host}}/api/Mascotas/atributos?tamano=mediano&edadMaxMeses=36&estadoSalud=sano
+Accept: application/json
+
+### [HU-6] Filtrar mascotas por ubicación
+GET {{Host}}/api/Mascotas/ubicacion?departamento=San%20Salvador
+Accept: application/json
+
+### [Panel] Mascotas de un refugio (GET /api/Refugios/{id}/mascotas)
+GET {{Host}}/api/Refugios/1/mascotas
+Accept: application/json
+
+### [HU-9] Registrar mascota
+POST {{Host}}/api/Mascotas
+Content-Type: application/json
+
+{
+  "idRefugio": 1,
+  "nombre": "Firulais",
+  "especie": "perro",
+  "tamano": "mediano",
+  "edadMeses": 24,
+  "estadoSalud": "sano"
+}
+
+### [HU-9] Actualizar mascota
+PUT {{Host}}/api/Mascotas/1
+Content-Type: application/json
+
+{
+  "estado": "reservada"
+}
+
+### [HU-9] Eliminar mascota
+DELETE {{Host}}/api/Mascotas/1
+
+### Subir imagen a una mascota
+POST {{Host}}/api/Mascotas/1/imagen
+Content-Type: image/png
+
+<ruta\del\archivo.png>
