@@ -1,82 +1,81 @@
+// [HU-10] Michael Menendez: Estructura base - Entidad Mascota (tabla mascota).
+// Los valores permitidos de Especie, Tamano, EstadoSalud y Estado se normalizan en minúsculas.
+
 namespace HuellitasSV.API.Models;
 
-/// <summary>
-/// Estados de disponibilidad de una mascota. Se almacenan como texto en la base de datos.
-/// </summary>
-public enum MascotaEstado
-{
-    /// <summary>La mascota está disponible y puede recibir solicitudes de adopción.</summary>
-    Disponible,
-
-    /// <summary>La mascota tiene una adopción aprobada en trámite.</summary>
-    EnProcesoAdopcion,
-
-    /// <summary>La adopción se concretó; la mascota ya no está disponible.</summary>
-    Adoptada
-}
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 /// <summary>
-/// Mascota publicada por un refugio para adopción o rescate.
+/// Entidad que representa una mascota en HuellitasSV.
 /// </summary>
+[Table("mascota")]
 public class Mascota
 {
-    /// <summary>
-    /// Identificador único de la mascota.
-    /// </summary>
-    public int IdMascota { get; set; }
+    /// <summary>Identificador único (identity).</summary>
+    [Key]
+    [Column("id_mascota")]
+    public long IdMascota { get; set; }
 
-    /// <summary>
-    /// Identificador del refugio que publicó la mascota.
-    /// </summary>
-    public int IdRefugio { get; set; }
+    /// <summary>Refugio al que pertenece (FK, borrado restrictivo).</summary>
+    [Required]
+    [Column("id_refugio")]
+    public long IdRefugio { get; set; }
 
-    /// <summary>
-    /// Nombre de la mascota.
-    /// </summary>
+    /// <summary>Nombre de la mascota.</summary>
+    [MaxLength(100)]
+    [Column("nombre")]
     public string Nombre { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Especie de la mascota (Perro, Gato, etc.).
-    /// </summary>
+    /// <summary>Especie: perro, gato u otro.</summary>
+    [Required]
+    [MaxLength(20)]
+    [Column("especie")]
     public string Especie { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Raza de la mascota, si se conoce.
-    /// </summary>
-    public string? Raza { get; set; }
+    /// <summary>Tamaño: pequeño, mediano o grande.</summary>
+    [Required]
+    [MaxLength(20)]
+    [Column("tamano")]
+    public string Tamano { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Sexo de la mascota (Macho, Hembra).
-    /// </summary>
-    public string? Sexo { get; set; }
+    /// <summary>Edad expresada en meses.</summary>
+    [Required]
+    [Column("edad_meses")]
+    public int EdadMeses { get; set; }
 
-    /// <summary>
-    /// Edad aproximada de la mascota en meses.
-    /// </summary>
-    public int? EdadMeses { get; set; }
+    /// <summary>Estado de salud: sano, en_tratamiento, discapacidad o crónico.</summary>
+    [Required]
+    [MaxLength(20)]
+    [Column("estado_salud")]
+    public string EstadoSalud { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Descripción de la mascota (características, temperamento, historia, etc.).
-    /// </summary>
-    public string? Descripcion { get; set; }
+    /// <summary>Estado: disponible, adoptada, fallecida, en_tratamiento o reservada.</summary>
+    [Required]
+    [MaxLength(30)]
+    [Column("estado")]
+    public string Estado { get; set; } = "disponible";
 
-    /// <summary>
-    /// URL o ruta de la foto de la mascota.
-    /// </summary>
-    public string? FotoUrl { get; set; }
+    /// <summary>Fecha de registro (UTC).</summary>
+    [Required]
+    [Column("fecha_registro")]
+    public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Estado de disponibilidad de la mascota para adopción.
-    /// </summary>
-    public MascotaEstado Estado { get; set; } = MascotaEstado.Disponible;
+    /// <summary>URL externa de la imagen (alternativa al BLOB).</summary>
+    [MaxLength(500)]
+    [Column("imagen_url")]
+    public string? ImagenUrl { get; set; }
 
-    /// <summary>
-    /// Fecha y hora de publicación en UTC.
-    /// </summary>
-    public DateTime FechaPublicacion { get; set; }
+    /// <summary>Imagen almacenada como BLOB en la base de datos.</summary>
+    [Column("imagen_data")]
+    public byte[]? ImagenData { get; set; }
 
-    /// <summary>
-    /// Refugio al que pertenece la mascota.
-    /// </summary>
+    /// <summary>Tipo MIME de la imagen almacenada (image/jpeg, image/png, etc.).</summary>
+    [MaxLength(50)]
+    [Column("imagen_content_type")]
+    public string? ImagenContentType { get; set; }
+
+    /// <summary>Navegación al refugio propietario.</summary>
+    [ForeignKey(nameof(IdRefugio))]
     public Refugio? Refugio { get; set; }
 }

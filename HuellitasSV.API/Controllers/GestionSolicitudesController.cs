@@ -208,8 +208,8 @@ public class GestionSolicitudesController : ControllerBase
 /// <param name="IdRefugio">Identificador del refugio que toma la decisión (debe ser dueño de la mascota).</param>
 /// <param name="ComentarioDecision">Comentario opcional para el solicitante.</param>
 public record SolicitudDecisionRequest(
-    [property: Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
+    [Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
     int IdRefugio,
 
-    [property: StringLength(500, ErrorMessage = "El comentario no puede exceder 500 caracteres.")]
+    [StringLength(500, ErrorMessage = "El comentario no puede exceder 500 caracteres.")]
     string? ComentarioDecision);

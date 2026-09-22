@@ -4,6 +4,7 @@ using HuellitasSV.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HuellitasSV.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921050425_SeedData")]
+    partial class SeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,19 +41,22 @@ namespace HuellitasSV.API.Migrations
                     b.Property<string>("Especie")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("especie");
 
                     b.Property<string>("Estado")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)")
                         .HasColumnName("estado");
 
                     b.Property<string>("EstadoSalud")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("estado_salud");
 
                     b.Property<DateTime>("FechaRegistro")
@@ -63,7 +69,8 @@ namespace HuellitasSV.API.Migrations
 
                     b.Property<string>("ImagenContentType")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("imagen_content_type");
 
                     b.Property<byte[]>("ImagenData")
@@ -72,19 +79,22 @@ namespace HuellitasSV.API.Migrations
 
                     b.Property<string>("ImagenUrl")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)")
                         .HasColumnName("imagen_url");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("nombre");
 
                     b.Property<string>("Tamano")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("tamano");
 
                     b.HasKey("IdMascota");
@@ -93,7 +103,7 @@ namespace HuellitasSV.API.Migrations
 
                     b.HasIndex("IdRefugio");
 
-                    b.ToTable("mascota");
+                    b.ToTable("mascota", (string)null);
                 });
 
             modelBuilder.Entity("HuellitasSV.API.Models.Refugio", b =>
@@ -108,24 +118,28 @@ namespace HuellitasSV.API.Migrations
                     b.Property<string>("Contacto")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(150)")
                         .HasColumnName("contacto");
 
                     b.Property<string>("Departamento")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("departamento");
 
                     b.Property<string>("DocumentacionUrl")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)")
                         .HasColumnName("documentacion_url");
 
                     b.Property<string>("EstadoAprobacion")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("estado_aprobacion");
 
                     b.Property<long>("IdCuenta")
@@ -135,20 +149,20 @@ namespace HuellitasSV.API.Migrations
                     b.Property<string>("Municipio")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("municipio");
 
                     b.Property<string>("NombreOrganizacion")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(150)")
                         .HasColumnName("nombre_organizacion");
 
                     b.HasKey("IdRefugio");
 
-                    b.HasIndex("EstadoAprobacion");
-
-                    b.ToTable("refugio");
+                    b.ToTable("refugio", (string)null);
                 });
 
             modelBuilder.Entity("HuellitasSV.API.Models.Mascota", b =>

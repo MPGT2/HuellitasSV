@@ -182,5 +182,5 @@ public class ReportesRescateController : ControllerBase
 /// </summary>
 /// <param name="IdRefugio">Identificador del refugio que atiende el reporte.</param>
 public record ReporteAtencionRequest(
-    [property: Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
+    [Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
     int IdRefugio);

@@ -1,66 +1,69 @@
-using System.ComponentModel.DataAnnotations;
+// [HU-10] Michael Menendez: Estructura base - Entidad Refugio (tabla refugio).
+// El estado de aprobación (pendiente/aprobado/rechazado) lo gestiona el proceso de solicitud de refugios.
 
 namespace HuellitasSV.API.Models;
 
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 /// <summary>
-/// Refugio de animales registrado en el sistema, asociado a un único usuario.
+/// Entidad que representa un refugio de animales en HuellitasSV.
 /// </summary>
+[Table("refugio")]
 public class Refugio
 {
-    /// <summary>
-    /// Identificador único del refugio.
-    /// </summary>
-    public int IdRefugio { get; set; }
+    /// <summary>Identificador único (identity).</summary>
+    [Key]
+    [Column("id_refugio")]
+    public long IdRefugio { get; set; }
 
-    /// <summary>
-    /// Identificador del usuario dueño del refugio. Es una relación uno a uno.
-    /// </summary>
-    public int IdUsuario { get; set; }
+    /// <summary>Cuenta de usuario asociada al refugio.</summary>
+    [Required]
+    [Column("id_cuenta")]
+    public long IdCuenta { get; set; }
 
-    /// <summary>
-    /// Nombre del refugio.
-    /// </summary>
-    public string Nombre { get; set; } = string.Empty;
+    /// <summary>Nombre de la organización.</summary>
+    [Required]
+    [MaxLength(150)]
+    [Column("nombre_organizacion")]
+    public string NombreOrganizacion { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Dirección física del refugio.
-    /// </summary>
-    public string? Direccion { get; set; }
+    /// <summary>Departamento donde se ubica.</summary>
+    [Required]
+    [MaxLength(100)]
+    [Column("departamento")]
+    public string Departamento { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Número telefónico de contacto del refugio.
-    /// </summary>
-    public string? Telefono { get; set; }
+    /// <summary>Municipio donde se ubica.</summary>
+    [Required]
+    [MaxLength(100)]
+    [Column("municipio")]
+    public string Municipio { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Descripción general del refugio y su labor.
-    /// </summary>
-    public string? Descripcion { get; set; }
+    /// <summary>Información de contacto.</summary>
+    [Required]
+    [MaxLength(150)]
+    [Column("contacto")]
+    public string Contacto { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Latitud geográfica del refugio. Permite notificar a los refugios cercanos de un reporte (HU-14).
-    /// </summary>
+    /// <summary>URL de documentación de respaldo (opcional).</summary>
+    [MaxLength(255)]
+    [Column("documentacion_url")]
+    public string? DocumentacionUrl { get; set; }
+
+    /// <summary>Latitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).</summary>
     [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    [Column("latitud")]
     public double? Latitud { get; set; }
 
-    /// <summary>
-    /// Longitud geográfica del refugio. Permite notificar a los refugios cercanos de un reporte (HU-14).
-    /// </summary>
+    /// <summary>Longitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).</summary>
     [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    [Column("longitud")]
     public double? Longitud { get; set; }
 
-    /// <summary>
-    /// Usuario dueño del refugio.
-    /// </summary>
-    public Usuario? Usuario { get; set; }
-
-    /// <summary>
-    /// Mascotas publicadas por este refugio.
-    /// </summary>
-    public ICollection<Mascota> Mascotas { get; set; } = new List<Mascota>();
-
-    /// <summary>
-    /// Necesidades de donación publicadas por este refugio.
-    /// </summary>
-    public ICollection<NecesidadDonacion> NecesidadesDonacion { get; set; } = new List<NecesidadDonacion>();
+    /// <summary>Estado de aprobación: pendiente, aprobado o rechazado.</summary>
+    [Required]
+    [MaxLength(20)]
+    [Column("estado_aprobacion")]
+    public string EstadoAprobacion { get; set; } = "pendiente";
 }
