@@ -79,4 +79,11 @@ app.UseCors("PermitirFrontend");
 
 app.MapControllers();
 
+// Aplica las migraciones (crea la BD, tablas y datos semilla) automáticamente al iniciar la API.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 app.Run();
