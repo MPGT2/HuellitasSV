@@ -32,10 +32,10 @@ public class GestionSolicitudesController : ControllerBase
     /// </remarks>
     /// <param name="refugioId">Identificador del refugio (obligatorio).</param>
     /// <param name="estado">Filtra por estado: Pendiente, Aprobada o Rechazada (opcional).</param>
-    /// <returns>Lista de solicitudes ordenadas de más reciente a más antigua.</returns>
+    /// <returns>Lista de solicitudes ordenada de más reciente a más antigua.</returns>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SolicitudAdopcion>>> GetSolicitudes(
-        [FromQuery] int refugioId,
+        [FromQuery] long refugioId,
         [FromQuery] string? estado)
     {
         if (refugioId <= 0)
@@ -43,7 +43,7 @@ public class GestionSolicitudesController : ControllerBase
             return BadRequest("Debe indicar el identificador del refugio (refugioId).");
         }
 
-        var refugioExiste = await _context.Refugios.AnyAsync(r => r.IdRefugio == refugioId);
+        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == refugioId);
         if (!refugioExiste)
         {
             return NotFound("El refugio indicado no existe.");
@@ -93,7 +93,7 @@ public class GestionSolicitudesController : ControllerBase
     }
 
     /// <summary>
-    /// Aprueba una solicitud pendiente: cambia la mascota a "EnProcesoAdopcion" y notifica al usuario.
+    /// Aprueba una solicitud pendiente: reserva la mascota (estado "reservada") y notifica al usuario.
     /// </summary>
     /// <param name="id">Identificador de la solicitud.</param>
     /// <param name="request">Refugio que decide y comentario opcional.</param>
@@ -145,7 +145,7 @@ public class GestionSolicitudesController : ControllerBase
             return BadRequest($"Solo se pueden decidir solicitudes pendientes; el estado actual es \"{solicitud.Estado}\".");
         }
 
-        var mascota = await _context.Mascotas.FindAsync(solicitud.IdMascota);
+        var mascota = await _context.Mascota.FindAsync(solicitud.IdMascota);
 
         if (mascota is null)
         {
@@ -163,7 +163,9 @@ public class GestionSolicitudesController : ControllerBase
         {
             solicitud.Estado = SolicitudEstado.Aprobada;
             solicitud.ComentarioDecision = request.ComentarioDecision;
-            mascota.Estado = MascotaEstado.EnProcesoAdopcion;
+
+            // Estados de la tabla mascota: disponible, reservada, adoptada, en_tratamiento, fallecida.
+            mascota.Estado = "reservada";
 
             _context.Notificaciones.Add(new Notificacion
             {
@@ -183,9 +185,9 @@ public class GestionSolicitudesController : ControllerBase
                 s.IdSolicitud != solicitud.IdSolicitud &&
                 s.Estado == SolicitudEstado.Aprobada);
 
-            if (!otraAprobada && mascota.Estado == MascotaEstado.EnProcesoAdopcion)
+            if (!otraAprobada && mascota.Estado == "reservada")
             {
-                mascota.Estado = MascotaEstado.Disponible;
+                mascota.Estado = "disponible";
             }
 
             _context.Notificaciones.Add(new Notificacion
@@ -208,8 +210,8 @@ public class GestionSolicitudesController : ControllerBase
 /// <param name="IdRefugio">Identificador del refugio que toma la decisión (debe ser dueño de la mascota).</param>
 /// <param name="ComentarioDecision">Comentario opcional para el solicitante.</param>
 public record SolicitudDecisionRequest(
-    [Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
-    int IdRefugio,
+    [Range(1L, long.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
+    long IdRefugio,
 
     [StringLength(500, ErrorMessage = "El comentario no puede exceder 500 caracteres.")]
     string? ComentarioDecision);

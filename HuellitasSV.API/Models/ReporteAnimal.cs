@@ -32,7 +32,7 @@ public class ReporteAnimal
     /// <summary>
     /// Identificador del refugio que atendió el reporte. Nulo mientras el reporte está pendiente.
     /// </summary>
-    public int? IdRefugio { get; set; }
+    public long? IdRefugio { get; set; }
 
     /// <summary>
     /// Descripción del animal y su situación.

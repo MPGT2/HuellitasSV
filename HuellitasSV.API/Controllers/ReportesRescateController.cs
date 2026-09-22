@@ -43,7 +43,7 @@ public class ReportesRescateController : ControllerBase
     /// <returns>Lista de reportes ordenada de más reciente a más antigua.</returns>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ReporteAnimal>>> GetReportes(
-        [FromQuery] int refugioId,
+        [FromQuery] long refugioId,
         [FromQuery] string? estado)
     {
         if (refugioId <= 0)
@@ -51,7 +51,7 @@ public class ReportesRescateController : ControllerBase
             return BadRequest("Debe indicar el identificador del refugio (refugioId).");
         }
 
-        var refugio = await _context.Refugios.FindAsync(refugioId);
+        var refugio = await _context.Refugio.FindAsync(refugioId);
 
         if (refugio is null)
         {
@@ -133,7 +133,7 @@ public class ReportesRescateController : ControllerBase
             return BadRequest("El reporte ya fue atendido anteriormente.");
         }
 
-        var refugio = await _context.Refugios.FindAsync(request.IdRefugio);
+        var refugio = await _context.Refugio.FindAsync(request.IdRefugio);
 
         if (refugio is null)
         {
@@ -182,5 +182,5 @@ public class ReportesRescateController : ControllerBase
 /// </summary>
 /// <param name="IdRefugio">Identificador del refugio que atiende el reporte.</param>
 public record ReporteAtencionRequest(
-    [Range(1, int.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
-    int IdRefugio);
+    [Range(1L, long.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
+    long IdRefugio);

@@ -18,7 +18,7 @@ public class Notificacion
     /// <summary>
     /// Identificador del refugio destinatario. Nulo si la notificación es para un usuario.
     /// </summary>
-    public int? IdRefugio { get; set; }
+    public long? IdRefugio { get; set; }
 
     /// <summary>
     /// Identificador del usuario destinatario. Nulo si la notificación es para un refugio.

@@ -13,7 +13,7 @@ public class NecesidadDonacion
     /// <summary>
     /// Identificador del refugio que publicó la necesidad.
     /// </summary>
-    public int IdRefugio { get; set; }
+    public long IdRefugio { get; set; }
 
     /// <summary>
     /// Título corto de la necesidad (ej.: "20 sacos de alimento para perros").

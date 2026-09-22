@@ -31,7 +31,7 @@ public class NotificacionesController : ControllerBase
     /// <returns>Lista de notificaciones; vacía si no hay coincidencias.</returns>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Notificacion>>> GetNotificaciones(
-        [FromQuery] int? refugioId,
+        [FromQuery] long? refugioId,
         [FromQuery] int? usuarioId)
     {
         IQueryable<Notificacion> consulta = _context.Notificaciones.AsQueryable();

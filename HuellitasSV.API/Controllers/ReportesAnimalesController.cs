@@ -80,7 +80,7 @@ public class ReportesAnimalesController : ControllerBase
         _context.ReportesAnimales.Add(reporte);
 
         // Notificación a los refugios cercanos a la ubicación del reporte.
-        var refugiosConUbicacion = await _context.Refugios
+        var refugiosConUbicacion = await _context.Refugio
             .Where(r => r.Latitud != null && r.Longitud != null)
             .ToListAsync();
 
@@ -96,7 +96,7 @@ public class ReportesAnimalesController : ControllerBase
             {
                 _context.Notificaciones.Add(new Notificacion
                 {
-                    Mensaje = $"Animal callejero reportado a {distancia:F1} km de tu refugio \"{refugio.Nombre}\". Revisa el panel de rescates.",
+                    Mensaje = $"Animal callejero reportado a {distancia:F1} km de tu refugio \"{refugio.NombreOrganizacion}\". Revisa el panel de rescates.",
                     IdRefugio = refugio.IdRefugio,
                     FechaCreacion = DateTime.UtcNow
                 });

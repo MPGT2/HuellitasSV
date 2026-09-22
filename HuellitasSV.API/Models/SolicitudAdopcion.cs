@@ -28,9 +28,9 @@ public class SolicitudAdopcion
     public int IdSolicitud { get; set; }
 
     /// <summary>
-    /// Identificador de la mascota que se desea adoptar.
+    /// Identificador de la mascota que se desea adoptar (clave de la tabla mascota).
     /// </summary>
-    public int IdMascota { get; set; }
+    public long IdMascota { get; set; }
 
     /// <summary>
     /// Identificador del usuario solicitante (adoptante).

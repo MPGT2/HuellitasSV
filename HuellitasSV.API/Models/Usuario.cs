@@ -37,9 +37,4 @@ public class Usuario
     /// Fecha y hora de registro en UTC. Se asigna automáticamente al crear el usuario.
     /// </summary>
     public DateTime FechaRegistro { get; set; }
-
-    /// <summary>
-    /// Refugio asociado cuando el usuario representa a un refugio. Un usuario tiene como máximo un refugio.
-    /// </summary>
-    public Refugio? Refugio { get; set; }
 }

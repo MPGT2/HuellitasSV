@@ -58,7 +58,7 @@ public class SolicitudesAdopcionController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<SolicitudAdopcion>> PostSolicitud([FromBody] SolicitudAdopcion solicitud)
     {
-        var mascota = await _context.Mascotas.FindAsync(solicitud.IdMascota);
+        var mascota = await _context.Mascota.FindAsync(solicitud.IdMascota);
 
         if (mascota is null)
         {
