@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HuellitasSV.API.Models;
 
 /// <summary>
@@ -34,6 +36,18 @@ public class Refugio
     /// Descripción general del refugio y su labor.
     /// </summary>
     public string? Descripcion { get; set; }
+
+    /// <summary>
+    /// Latitud geográfica del refugio. Permite notificar a los refugios cercanos de un reporte (HU-14).
+    /// </summary>
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public double? Latitud { get; set; }
+
+    /// <summary>
+    /// Longitud geográfica del refugio. Permite notificar a los refugios cercanos de un reporte (HU-14).
+    /// </summary>
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public double? Longitud { get; set; }
 
     /// <summary>
     /// Usuario dueño del refugio.

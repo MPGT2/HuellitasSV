@@ -56,6 +56,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<Notificacion> Notificaciones { get; set; } = null!;
 
     /// <summary>
+    /// Conjunto de reportes de animales callejeros enviados por los usuarios.
+    /// </summary>
+    public DbSet<ReporteAnimal> ReportesAnimales { get; set; } = null!;
+
+    /// <summary>
     /// Configura el modelo de datos, relaciones y restricciones de precisión para SQL Server.
     /// </summary>
     /// <param name="modelBuilder">Constructor del modelo de Entity Framework.</param>
@@ -131,6 +136,24 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(n => n.IdUsuario)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReporteAnimal>(entity =>
+        {
+            // El estado se almacena como texto ("Pendiente", "Atendido").
+            entity.Property(r => r.Estado)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.HasOne(r => r.Usuario)
+                .WithMany()
+                .HasForeignKey(r => r.IdUsuario)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.Refugio)
+                .WithMany()
+                .HasForeignKey(r => r.IdRefugio)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
