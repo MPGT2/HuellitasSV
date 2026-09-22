@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace HuellitasSV.API.Models;
 
 /// <summary>
@@ -26,8 +28,9 @@ public class Usuario
     public string? Telefono { get; set; }
 
     /// <summary>
-    /// Contraseña de acceso del usuario.
+    /// Contraseña de acceso del usuario. Nunca se incluye en las respuestas de la API.
     /// </summary>
+    [JsonIgnore]
     public string Contrasena { get; set; } = string.Empty;
 
     /// <summary>

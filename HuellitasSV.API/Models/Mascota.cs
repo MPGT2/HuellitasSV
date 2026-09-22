@@ -1,6 +1,21 @@
 namespace HuellitasSV.API.Models;
 
 /// <summary>
+/// Estados de disponibilidad de una mascota. Se almacenan como texto en la base de datos.
+/// </summary>
+public enum MascotaEstado
+{
+    /// <summary>La mascota está disponible y puede recibir solicitudes de adopción.</summary>
+    Disponible,
+
+    /// <summary>La mascota tiene una adopción aprobada en trámite.</summary>
+    EnProcesoAdopcion,
+
+    /// <summary>La adopción se concretó; la mascota ya no está disponible.</summary>
+    Adoptada
+}
+
+/// <summary>
 /// Mascota publicada por un refugio para adopción o rescate.
 /// </summary>
 public class Mascota
@@ -49,6 +64,11 @@ public class Mascota
     /// URL o ruta de la foto de la mascota.
     /// </summary>
     public string? FotoUrl { get; set; }
+
+    /// <summary>
+    /// Estado de disponibilidad de la mascota para adopción.
+    /// </summary>
+    public MascotaEstado Estado { get; set; } = MascotaEstado.Disponible;
 
     /// <summary>
     /// Fecha y hora de publicación en UTC.

@@ -78,6 +78,11 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<Mascota>(entity =>
         {
+            // El estado se almacena como texto ("Disponible", "EnProcesoAdopcion", "Adoptada").
+            entity.Property(m => m.Estado)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
             entity.HasOne(m => m.Refugio)
                 .WithMany(r => r.Mascotas)
                 .HasForeignKey(m => m.IdRefugio)
