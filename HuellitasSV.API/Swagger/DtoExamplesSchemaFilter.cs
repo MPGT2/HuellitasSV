@@ -42,5 +42,22 @@ public class DtoExamplesSchemaFilter : ISchemaFilter
                 ["justificacionCambioEstado"] = "Adoptada por una familia responsable."
             };
         }
+        else if (context.Type == typeof(HuellitasSV.API.Controllers.RegistroUsuarioDto))
+        {
+            concrete.Example = new System.Text.Json.Nodes.JsonObject
+            {
+                ["nombre"] = "María López",
+                ["correo"] = "maria.lopez@correo.com",
+                ["contrasena"] = "Usuario2026!"
+            };
+        }
+        else if (context.Type == typeof(HuellitasSV.API.Controllers.LoginUsuarioDto))
+        {
+            concrete.Example = new System.Text.Json.Nodes.JsonObject
+            {
+                ["correo"] = "marialopez@correo.com",
+                ["contrasena"] = "Usuario2026!"
+            };
+        }
     }
 }
