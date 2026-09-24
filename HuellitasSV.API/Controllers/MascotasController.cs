@@ -1,7 +1,7 @@
-// [HU-04 | HU-05 | HU-06] Michael Menendez: Controlador de mascotas (versión 2) - Etapas 1 a 3 de la consolidación en un único archivo.
-// HU-04 reemplaza: MascotasController.CatalogoEspecie.cs; HU-05: MascotasController.FiltroAtributos.cs; HU-06: MascotasController.FiltroUbicacion.cs.
-// Los endpoints de HU-09 se incorporarán en su respectiva rama feature.
-// Orden jerárquico: 1) Constructor, 2) [HttpGet], 3) [HttpPost], 4) [HttpPut], 5) [HttpDelete].
+// [HU-04 | HU-05 | HU-06 | HU-09] Michael Menendez: Controlador de mascotas unificado en un único archivo.
+// Este archivo consolida y reemplaza los antiguos partial: MascotasController.Gestion.cs,
+// MascotasController.CatalogoEspecie.cs, MascotasController.FiltroAtributos.cs y MascotasController.FiltroUbicacion.cs.
+// Orden jerárquico estricto: 1) Constructor e inyección de dependencias, 2) [HttpGet], 3) [HttpPost], 4) [HttpPut], 5) [HttpDelete].
 
 namespace HuellitasSV.API.Controllers;
 
@@ -16,13 +16,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Controlador (parcial) de mascotas de HuellitasSV. En esta etapa incluye el filtro por especie (HU-04),
-/// el filtro por atributos (HU-05) y el filtro por ubicación del refugio (HU-06);
-/// se mantiene parcial hasta consolidar HU-09.
+/// Controlador de mascotas de HuellitasSV: catálogo público y gestión CRUD (HU-09),
+/// filtro por especie (HU-04), filtro por atributos (HU-05) y filtro por ubicación del refugio (HU-06).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public partial class MascotasController : ControllerBase
+public class MascotasController : ControllerBase
 {
     /// <summary>Contexto de base de datos inyectado por el contenedor de dependencias.</summary>
     private readonly ApplicationDbContext _context;
@@ -43,6 +42,66 @@ public partial class MascotasController : ControllerBase
     // ============================================================
     // 2) MÉTODOS [HttpGet]
     // ============================================================
+
+    /// <summary>
+    /// [HU-09] Obtiene el catálogo público con todas las mascotas en estado "disponible".
+    /// </summary>
+    /// <returns>ActionResult con la lista de mascotas disponibles en formato JSON.</returns>
+    /// <response code="200">Catálogo de mascotas disponibles (lista vacía si no hay resultados).</response>
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<MascotaRespuestaDto>>> ObtenerCatalogo()
+    {
+        var catalogo = await _context.Mascota
+            .Where(m => m.Estado == "disponible")
+            .OrderByDescending(m => m.FechaRegistro)
+            .Select(m => new MascotaRespuestaDto
+            {
+                IdMascota = m.IdMascota,
+                Nombre = m.Nombre,
+                Especie = m.Especie,
+                Tamano = m.Tamano,
+                EdadMeses = m.EdadMeses,
+                EstadoSalud = m.EstadoSalud,
+                Estado = m.Estado,
+                FechaRegistro = m.FechaRegistro,
+                ImagenUrl = m.ImagenUrl
+            })
+            .ToListAsync();
+
+        return Ok(catalogo);
+    }
+
+    /// <summary>
+    /// [HU-09] Obtiene el detalle de una mascota por su identificador único.
+    /// </summary>
+    /// <param name="id">Identificador único de la mascota.</param>
+    /// <returns>ActionResult con la mascota solicitada en formato JSON.</returns>
+    /// <response code="200">Mascota encontrada.</response>
+    /// <response code="404">Mascota no encontrada.</response>
+    [HttpGet("{id}")]
+    public async Task<ActionResult<MascotaRespuestaDto>> ObtenerPorId(long id)
+    {
+        var mascota = await _context.Mascota
+            .Where(m => m.IdMascota == id)
+            .Select(m => new MascotaRespuestaDto
+            {
+                IdMascota = m.IdMascota,
+                Nombre = m.Nombre,
+                Especie = m.Especie,
+                Tamano = m.Tamano,
+                EdadMeses = m.EdadMeses,
+                EstadoSalud = m.EstadoSalud,
+                Estado = m.Estado,
+                FechaRegistro = m.FechaRegistro,
+                ImagenUrl = m.ImagenUrl
+            })
+            .FirstOrDefaultAsync();
+
+        if (mascota is null)
+            return NotFound(new { error = "Mascota no encontrada." });
+
+        return Ok(mascota);
+    }
 
     /// <summary>
     /// [HU-04] Obtiene únicamente las mascotas disponibles de la especie indicada.
@@ -170,6 +229,198 @@ public partial class MascotasController : ControllerBase
             .ToListAsync();
 
         return Ok(resultados);
+    }
+
+    /// <summary>
+    /// [HU-09] Obtiene las mascotas registradas por un refugio, con filtro opcional por estado.
+    /// </summary>
+    /// <param name="idRefugio">Identificador único del refugio.</param>
+    /// <param name="estado">Estado opcional: disponible, adoptada, fallecida, en_tratamiento o reservada.</param>
+    /// <returns>ActionResult con la lista de mascotas del refugio en formato JSON.</returns>
+    /// <response code="200">Lista de mascotas del refugio ordenada por fecha de registro descendente.</response>
+    [HttpGet("refugio/{idRefugio}")]
+    public async Task<ActionResult<IEnumerable<MascotaRespuestaDto>>> ObtenerPorRefugio(
+        long idRefugio,
+        [FromQuery] string? estado = null)
+    {
+        var query = _context.Mascota.Where(m => m.IdRefugio == idRefugio).AsQueryable();
+
+        if (!string.IsNullOrEmpty(estado))
+            query = query.Where(m => m.Estado == estado);
+
+        var mascotas = await query
+            .OrderByDescending(m => m.FechaRegistro)
+            .Select(m => new MascotaRespuestaDto
+            {
+                IdMascota = m.IdMascota,
+                Nombre = m.Nombre,
+                Especie = m.Especie,
+                Tamano = m.Tamano,
+                EdadMeses = m.EdadMeses,
+                EstadoSalud = m.EstadoSalud,
+                Estado = m.Estado,
+                FechaRegistro = m.FechaRegistro,
+                ImagenUrl = m.ImagenUrl
+            })
+            .ToListAsync();
+
+        return Ok(mascotas);
+    }
+
+    // ============================================================
+    // 3) MÉTODOS [HttpPost]
+    // ============================================================
+
+    /// <summary>
+    /// [HU-09] Registra una nueva mascota en estado "disponible" por defecto.
+    /// Admite envío multipart/form-data para incluir una imagen de la mascota.
+    /// </summary>
+    /// <param name="dto">Datos validados de la mascota (IdRefugio, Nombre, Especie, Tamano, EdadMeses y EstadoSalud).</param>
+    /// <param name="imagen">Archivo de imagen de la mascota (opcional, multipart/form-data).</param>
+    /// <returns>ActionResult con la mascota creada en formato JSON y su URI de consulta.</returns>
+    /// <response code="201">Mascota registrada correctamente.</response>
+    /// <response code="400">Datos inválidos, refugio inexistente o error al procesar la imagen.</response>
+    [HttpPost]
+    public async Task<ActionResult<MascotaRespuestaDto>> RegistrarMascota([FromForm] RegistrarMascotaDto dto, IFormFile? imagen)
+    {
+        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == dto.IdRefugio);
+        if (!refugioExiste)
+            return BadRequest(new { error = "El refugio especificado no existe." });
+
+        // Procesar imagen si se proporciona
+        string? urlImagen = null;
+        if (imagen != null && imagen.Length > 0)
+        {
+            // Asegurar que la carpeta exista
+            var carpetaImagenes = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "imagenes", "mascotas");
+            if (!Directory.Exists(carpetaImagenes))
+                Directory.CreateDirectory(carpetaImagenes);
+
+            // Generar nombre de archivo único
+            var extension = Path.GetExtension(imagen.FileName);
+            var nombreArchivo = $"mascota_{Guid.NewGuid()}{extension}";
+            var rutaArchivo = Path.Combine(carpetaImagenes, nombreArchivo);
+
+            // Guardar el archivo
+            using (var stream = new FileStream(rutaArchivo, FileMode.Create))
+            {
+                await imagen.CopyToAsync(stream);
+            }
+
+            urlImagen = $"/imagenes/mascotas/{nombreArchivo}";
+        }
+
+        var mascota = new Mascota
+        {
+            IdRefugio = dto.IdRefugio,
+            Nombre = dto.Nombre ?? string.Empty,
+            Especie = dto.Especie.ToLower(),
+            Tamano = dto.Tamano.ToLower(),
+            EdadMeses = dto.EdadMeses,
+            EstadoSalud = dto.EstadoSalud.ToLower(),
+            Estado = "disponible",
+            FechaRegistro = DateTime.UtcNow,
+            ImagenUrl = urlImagen
+        };
+
+        _context.Mascota.Add(mascota);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(ObtenerPorId), new { id = mascota.IdMascota }, new MascotaRespuestaDto
+        {
+            IdMascota = mascota.IdMascota,
+            Nombre = mascota.Nombre,
+            Especie = mascota.Especie,
+            Tamano = mascota.Tamano,
+            EdadMeses = mascota.EdadMeses,
+            EstadoSalud = mascota.EstadoSalud,
+            Estado = mascota.Estado,
+            FechaRegistro = mascota.FechaRegistro,
+            ImagenUrl = mascota.ImagenUrl
+        });
+    }
+
+    // ============================================================
+    // 4) MÉTODOS [HttpPut]
+    // ============================================================
+
+    /// <summary>
+    /// [HU-09] Actualiza parcialmente una mascota o aplica una transición de estado.
+    /// Regla de negocio: pasar de "adoptada" a "disponible" exige justificación y "fallecida" es irreversible.
+    /// </summary>
+    /// <param name="id">Identificador único de la mascota a actualizar.</param>
+    /// <param name="dto">Campos opcionales a modificar (Nombre, Especie, Tamano, EdadMeses, EstadoSalud, Estado y JustificacionCambioEstado).</param>
+    /// <returns>ActionResult con la mascota actualizada en formato JSON.</returns>
+    /// <response code="200">Mascota actualizada correctamente.</response>
+    /// <response code="400">Transición de estado no permitida.</response>
+    /// <response code="404">Mascota no encontrada.</response>
+    [HttpPut("{id}")]
+    public async Task<ActionResult<MascotaRespuestaDto>> ActualizarMascota(long id, [FromBody] ActualizarMascotaDto dto)
+    {
+        var mascotaExistente = await _context.Mascota.FindAsync(id);
+        if (mascotaExistente is null)
+            return NotFound(new { error = "Mascota no encontrada." });
+
+        if (!string.IsNullOrEmpty(dto.Estado)
+            && !EsTransicionEstadoValida(mascotaExistente.Estado, dto.Estado.ToLower(), dto.JustificacionCambioEstado))
+        {
+            return BadRequest(new
+            {
+                error = "Transición de estado no permitida. Cambiar de 'adoptada' a 'disponible' requiere justificación y 'fallecida' es irreversible."
+            });
+        }
+
+        if (!string.IsNullOrEmpty(dto.Nombre))
+            mascotaExistente.Nombre = dto.Nombre;
+        if (!string.IsNullOrEmpty(dto.Especie))
+            mascotaExistente.Especie = dto.Especie.ToLower();
+        if (!string.IsNullOrEmpty(dto.Tamano))
+            mascotaExistente.Tamano = dto.Tamano.ToLower();
+        if (dto.EdadMeses.HasValue)
+            mascotaExistente.EdadMeses = dto.EdadMeses.Value;
+        if (!string.IsNullOrEmpty(dto.EstadoSalud))
+            mascotaExistente.EstadoSalud = dto.EstadoSalud.ToLower();
+        if (!string.IsNullOrEmpty(dto.Estado))
+            mascotaExistente.Estado = dto.Estado.ToLower();
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new MascotaRespuestaDto
+        {
+            IdMascota = mascotaExistente.IdMascota,
+            Nombre = mascotaExistente.Nombre,
+            Especie = mascotaExistente.Especie,
+            Tamano = mascotaExistente.Tamano,
+            EdadMeses = mascotaExistente.EdadMeses,
+            EstadoSalud = mascotaExistente.EstadoSalud,
+            Estado = mascotaExistente.Estado,
+            FechaRegistro = mascotaExistente.FechaRegistro,
+            ImagenUrl = mascotaExistente.ImagenUrl
+        });
+    }
+
+    // ============================================================
+    // 5) MÉTODOS [HttpDelete]
+    // ============================================================
+
+    /// <summary>
+    /// [HU-09] Elimina físicamente una mascota del sistema.
+    /// </summary>
+    /// <param name="id">Identificador único de la mascota a eliminar.</param>
+    /// <returns>ActionResult con un mensaje de confirmación en formato JSON.</returns>
+    /// <response code="200">Mascota eliminada correctamente.</response>
+    /// <response code="404">Mascota no encontrada.</response>
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> EliminarMascota(long id)
+    {
+        var mascota = await _context.Mascota.FindAsync(id);
+        if (mascota is null)
+            return NotFound(new { error = "Mascota no encontrada." });
+
+        _context.Mascota.Remove(mascota);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Mascota eliminada del sistema." });
     }
 
     // ============================================================

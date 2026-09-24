@@ -38,4 +38,7 @@ public class RegistrarMascotaDto
     [Required(ErrorMessage = "Estado de salud es obligatorio.")]
     [RegularExpression("^(?i)(sano|en_tratamiento|discapacidad|crónico)$", ErrorMessage = "Estado de salud inválido. Valores permitidos: sano, en_tratamiento, discapacidad, crónico.")]
     public string EstadoSalud { get; set; } = string.Empty;
+
+    /// <summary>Imagen de la mascota (archivo subido en multipart/form-data).</summary>
+    public IFormFile? Imagen { get; set; }
 }
