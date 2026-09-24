@@ -16,6 +16,10 @@ Accept: application/json
 GET {{Host}}/api/Refugios/1/mascotas
 Accept: application/json
 
+### [HU-24] Refugios pendientes de aprobación (panel admin)
+GET {{Host}}/api/Refugios/pendientes
+Accept: application/json
+
 ### [HU-02] Registrar refugio (queda en estado "pendiente")
 POST {{Host}}/api/Refugios/registro
 Content-Type: application/json
@@ -36,6 +40,14 @@ Content-Type: application/json
 {
   "correo": "contacto@huellitassv.org",
   "contrasena": "Refugio2026!"
+}
+
+### [HU-24] Aprobar o rechazar un refugio (aprobado | rechazado)
+PUT {{Host}}/api/Refugios/9004/estado
+Content-Type: application/json
+
+{
+  "estado": "aprobado"
 }
 
 ### [HU-01] Registrar usuario cliente (acceso inmediato, sin aprobación)
@@ -81,8 +93,6 @@ Content-Type: application/json
 ### [HU-9] Eliminar mascota
 DELETE {{Host}}/api/Mascotas/1
 
-### Subir imagen a una mascota
-POST {{Host}}/api/Mascotas/1/imagen
-Content-Type: image/png
-
-<ruta\del\archivo.png>
+### [HU-9] Catálogo público de mascotas disponibles
+GET {{Host}}/api/Mascotas
+Accept: application/json
