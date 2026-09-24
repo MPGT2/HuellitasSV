@@ -4,6 +4,7 @@ using HuellitasSV.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HuellitasSV.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924033715_AgregarTablaUsuario")]
+    partial class AgregarTablaUsuario
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,7 +69,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 1001L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "contacto@huellitassv.org",
                             Estado = "aprobado",
                             Rol = "Refugio"
@@ -74,7 +77,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 1002L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "adopciones@proteccionsv.org",
                             Estado = "aprobado",
                             Rol = "Refugio"
@@ -82,7 +85,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 1003L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "info@alberguesm.org",
                             Estado = "pendiente",
                             Rol = "Refugio"
@@ -90,7 +93,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9001L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "losamigos.refugio@correo.com",
                             Estado = "aprobado",
                             Rol = "Refugio"
@@ -98,7 +101,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9002L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "hogarsantaana@correo.com",
                             Estado = "aprobado",
                             Rol = "Refugio"
@@ -106,7 +109,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9003L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "vidasonsonate@correo.com",
                             Estado = "pendiente",
                             Rol = "Refugio"
@@ -114,7 +117,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9004L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "patitasusulutan@correo.com",
                             Estado = "pendiente",
                             Rol = "Refugio"
@@ -122,7 +125,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9005L,
-                            Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==",
+                            Contrasena = "Refugio2026!",
                             Correo = "ayudaanimalchalate@correo.com",
                             Estado = "rechazado",
                             Rol = "Refugio"
@@ -130,7 +133,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9006L,
-                            Contrasena = "AQAAAAIAAYagAAAAEEwuG7WIzT50BNMbcOjCcrOXbVZYK+aPbwJW8gVrFg1VQ5QqPmopibuNtnP7+aCn5A==",
+                            Contrasena = "Usuario2026!",
                             Correo = "marialopez@correo.com",
                             Estado = "activo",
                             Rol = "Usuario"
@@ -138,7 +141,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9007L,
-                            Contrasena = "AQAAAAIAAYagAAAAEEwuG7WIzT50BNMbcOjCcrOXbVZYK+aPbwJW8gVrFg1VQ5QqPmopibuNtnP7+aCn5A==",
+                            Contrasena = "Usuario2026!",
                             Correo = "carlosperez@correo.com",
                             Estado = "inactivo",
                             Rol = "Usuario"
@@ -146,7 +149,7 @@ namespace HuellitasSV.API.Migrations
                         new
                         {
                             IdCuenta = 9008L,
-                            Contrasena = "AQAAAAIAAYagAAAAEEwuG7WIzT50BNMbcOjCcrOXbVZYK+aPbwJW8gVrFg1VQ5QqPmopibuNtnP7+aCn5A==",
+                            Contrasena = "Usuario2026!",
                             Correo = "anagomez@correo.com",
                             Estado = "bloqueado",
                             Rol = "Usuario"
@@ -249,7 +252,7 @@ namespace HuellitasSV.API.Migrations
                             FechaRegistro = new DateTime(2026, 5, 20, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 1L,
                             Nombre = "Mia",
-                            Tamano = "pequeÃ±o"
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -269,7 +272,7 @@ namespace HuellitasSV.API.Migrations
                             EdadMeses = 18,
                             Especie = "gato",
                             Estado = "disponible",
-                            EstadoSalud = "crÃ³nico",
+                            EstadoSalud = "crónico",
                             FechaRegistro = new DateTime(2026, 6, 25, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 2L,
                             Nombre = "Coco",
@@ -298,7 +301,7 @@ namespace HuellitasSV.API.Migrations
                             IdRefugio = 9001L,
                             ImagenUrl = "https://placekitten.com/400/300",
                             Nombre = "Nina",
-                            Tamano = "pequeÃ±o"
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -309,8 +312,8 @@ namespace HuellitasSV.API.Migrations
                             EstadoSalud = "discapacidad",
                             FechaRegistro = new DateTime(2026, 8, 2, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 9001L,
-                            Nombre = "SimÃ³n",
-                            Tamano = "pequeÃ±o"
+                            Nombre = "Simón",
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -441,12 +444,12 @@ namespace HuellitasSV.API.Migrations
                         {
                             IdRefugio = 9004L,
                             Contacto = "7770-0004",
-                            Departamento = "UsulutÃ¡n",
+                            Departamento = "Usulután",
                             DocumentacionUrl = "https://patitasusulutan.org/docs",
                             EstadoAprobacion = "pendiente",
                             IdCuenta = 9004L,
-                            Municipio = "UsulutÃ¡n",
-                            NombreOrganizacion = "Patitas de UsulutÃ¡n"
+                            Municipio = "Usulután",
+                            NombreOrganizacion = "Patitas de Usulután"
                         },
                         new
                         {
@@ -490,19 +493,19 @@ namespace HuellitasSV.API.Migrations
                         {
                             IdUsuario = 9001L,
                             IdCuenta = 9006L,
-                            Nombre = "MarÃ­a LÃ³pez"
+                            Nombre = "María López"
                         },
                         new
                         {
                             IdUsuario = 9002L,
                             IdCuenta = 9007L,
-                            Nombre = "Carlos PÃ©rez"
+                            Nombre = "Carlos Pérez"
                         },
                         new
                         {
                             IdUsuario = 9003L,
                             IdCuenta = 9008L,
-                            Nombre = "Ana GÃ³mez"
+                            Nombre = "Ana Gómez"
                         });
                 });
 

@@ -16,6 +16,25 @@ Accept: application/json
 GET {{Host}}/api/Refugios/1/mascotas
 Accept: application/json
 
+### [HU-01] Registrar usuario cliente (acceso inmediato, sin aprobación)
+POST {{Host}}/api/Usuarios/registro
+Content-Type: application/json
+
+{
+  "nombre": "María López",
+  "correo": "maria.lopez@correo.com",
+  "contrasena": "Usuario2026!"
+}
+
+### [HU-01] Inicio de sesión de usuario (activo | inactivo | bloqueado)
+POST {{Host}}/api/Usuarios/login
+Content-Type: application/json
+
+{
+  "correo": "marialopez@correo.com",
+  "contrasena": "Usuario2026!"
+}
+
 ### [HU-9] Registrar mascota
 POST {{Host}}/api/Mascotas
 Content-Type: application/json
