@@ -16,6 +16,28 @@ Accept: application/json
 GET {{Host}}/api/Refugios/1/mascotas
 Accept: application/json
 
+### [HU-02] Registrar refugio (queda en estado "pendiente")
+POST {{Host}}/api/Refugios/registro
+Content-Type: application/json
+
+{
+  "nombreOrganizacion": "Refugio Patitas Soyapango",
+  "correo": "patitas@refugio.org",
+  "contrasena": "Refugio2026!",
+  "departamento": "San Salvador",
+  "municipio": "Soyapango",
+  "contacto": "2222-0000"
+}
+
+### [HU-02] Inicio de sesión del refugio (solo cuentas aprobadas)
+POST {{Host}}/api/Refugios/login
+Content-Type: application/json
+
+{
+  "correo": "contacto@huellitassv.org",
+  "contrasena": "Refugio2026!"
+}
+
 ### [HU-01] Registrar usuario cliente (acceso inmediato, sin aprobación)
 POST {{Host}}/api/Usuarios/registro
 Content-Type: application/json
