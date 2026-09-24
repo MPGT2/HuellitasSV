@@ -42,6 +42,26 @@ public class DtoExamplesSchemaFilter : ISchemaFilter
                 ["justificacionCambioEstado"] = "Adoptada por una familia responsable."
             };
         }
+        else if (context.Type == typeof(HuellitasSV.API.Controllers.RegistroRefugioDto))
+        {
+            concrete.Example = new System.Text.Json.Nodes.JsonObject
+            {
+                ["nombreOrganizacion"] = "Refugio Patitas Soyapango",
+                ["correo"] = "patitas@refugio.org",
+                ["contrasena"] = "Refugio2026!",
+                ["departamento"] = "San Salvador",
+                ["municipio"] = "Soyapango",
+                ["contacto"] = "2222-0000"
+            };
+        }
+        else if (context.Type == typeof(HuellitasSV.API.Controllers.LoginRefugioDto))
+        {
+            concrete.Example = new System.Text.Json.Nodes.JsonObject
+            {
+                ["correo"] = "contacto@huellitassv.org",
+                ["contrasena"] = "Refugio2026!"
+            };
+        }
         else if (context.Type == typeof(HuellitasSV.API.Controllers.RegistroUsuarioDto))
         {
             concrete.Example = new System.Text.Json.Nodes.JsonObject
