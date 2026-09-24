@@ -1,6 +1,6 @@
-// [HU-04 | HU-05] Michael Menendez: Controlador de mascotas (versión 2) - Etapas 1 y 2 de la consolidación en un único archivo.
-// HU-04 reemplaza el antiguo partial: MascotasController.CatalogoEspecie.cs; HU-05 reemplaza: MascotasController.FiltroAtributos.cs.
-// Los endpoints de HU-06 y HU-09 se incorporarán en sus respectivas ramas feature.
+// [HU-04 | HU-05 | HU-06] Michael Menendez: Controlador de mascotas (versión 2) - Etapas 1 a 3 de la consolidación en un único archivo.
+// HU-04 reemplaza: MascotasController.CatalogoEspecie.cs; HU-05: MascotasController.FiltroAtributos.cs; HU-06: MascotasController.FiltroUbicacion.cs.
+// Los endpoints de HU-09 se incorporarán en su respectiva rama feature.
 // Orden jerárquico: 1) Constructor, 2) [HttpGet], 3) [HttpPost], 4) [HttpPut], 5) [HttpDelete].
 
 namespace HuellitasSV.API.Controllers;
@@ -16,8 +16,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Controlador (parcial) de mascotas de HuellitasSV. En esta etapa incluye el filtro por especie (HU-04)
-/// y el filtro por atributos (HU-05); se mantiene parcial hasta consolidar HU-06 y HU-09.
+/// Controlador (parcial) de mascotas de HuellitasSV. En esta etapa incluye el filtro por especie (HU-04),
+/// el filtro por atributos (HU-05) y el filtro por ubicación del refugio (HU-06);
+/// se mantiene parcial hasta consolidar HU-09.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -117,6 +118,60 @@ public partial class MascotasController : ControllerBase
         return Ok(resultados);
     }
 
+    /// <summary>
+    /// [HU-06] Filtra mascotas disponibles por la ubicación del refugio que las resguarda,
+    /// cruzando las tablas Mascota y Refugio mediante Include(m => m.Refugio).
+    /// Regla de negocio: si se envía el municipio, el departamento es obligatorio.
+    /// </summary>
+    /// <param name="departamento">Departamento opcional del refugio.</param>
+    /// <param name="municipio">Municipio opcional del refugio; requiere el departamento.</param>
+    /// <returns>ActionResult con la lista de mascotas filtradas por ubicación en formato JSON.</returns>
+    /// <response code="200">Lista de mascotas con los datos del refugio (lista vacía si no hay resultados).</response>
+    /// <response code="400">Se envió el municipio sin el departamento.</response>
+    [HttpGet("ubicacion")]
+    public async Task<ActionResult<IEnumerable<MascotaRespuestaDto>>> FiltrarPorUbicacion(
+        [FromQuery] string? departamento,
+        [FromQuery] string? municipio)
+    {
+        if (!string.IsNullOrEmpty(municipio) && string.IsNullOrEmpty(departamento))
+            return BadRequest(new { error = "Debe seleccionar primero un departamento antes de filtrar por municipio." });
+
+        var query = _context.Mascota
+            .Include(m => m.Refugio)
+            .Where(m => m.Estado == "disponible")
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(departamento))
+            query = query.Where(m => m.Refugio!.Departamento.ToLower() == departamento.ToLower());
+
+        if (!string.IsNullOrEmpty(municipio))
+            query = query.Where(m => m.Refugio!.Municipio.ToLower() == municipio.ToLower());
+
+        var resultados = await query
+            .OrderByDescending(m => m.FechaRegistro)
+            .Select(m => new MascotaRespuestaDto
+            {
+                IdMascota = m.IdMascota,
+                Nombre = m.Nombre,
+                Especie = m.Especie,
+                Tamano = m.Tamano,
+                EdadMeses = m.EdadMeses,
+                EstadoSalud = m.EstadoSalud,
+                Estado = m.Estado,
+                FechaRegistro = m.FechaRegistro,
+                ImagenUrl = m.ImagenUrl,
+                Refugio = new RefugioRespuestaDto
+                {
+                    NombreOrganizacion = m.Refugio!.NombreOrganizacion,
+                    Departamento = m.Refugio!.Departamento,
+                    Municipio = m.Refugio!.Municipio
+                }
+            })
+            .ToListAsync();
+
+        return Ok(resultados);
+    }
+
     // ============================================================
     // REGLA DE NEGOCIO PRIVADA COMPARTIDA
     // ============================================================
@@ -173,4 +228,22 @@ public sealed class MascotaRespuestaDto
 
     /// <summary>URL externa de la imagen de la mascota, si existe.</summary>
     public string? ImagenUrl { get; set; }
+
+    /// <summary>Datos del refugio que resguarda a la mascota (presente solo en el filtro por ubicación).</summary>
+    public RefugioRespuestaDto? Refugio { get; set; }
+}
+
+/// <summary>
+/// DTO de respuesta con los datos públicos de ubicación de un refugio.
+/// </summary>
+public sealed class RefugioRespuestaDto
+{
+    /// <summary>Nombre de la organización del refugio.</summary>
+    public string NombreOrganizacion { get; set; } = string.Empty;
+
+    /// <summary>Departamento donde se ubica el refugio.</summary>
+    public string Departamento { get; set; } = string.Empty;
+
+    /// <summary>Municipio donde se ubica el refugio.</summary>
+    public string Municipio { get; set; } = string.Empty;
 }
