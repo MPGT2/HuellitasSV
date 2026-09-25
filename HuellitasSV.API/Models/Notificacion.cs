@@ -23,7 +23,7 @@ public class Notificacion
     /// <summary>
     /// Identificador del usuario destinatario. Nulo si la notificación es para un refugio.
     /// </summary>
-    public int? IdUsuario { get; set; }
+    public long? IdUsuario { get; set; }
 
     /// <summary>
     /// Indica si la notificación ya fue leída por su destinatario.
