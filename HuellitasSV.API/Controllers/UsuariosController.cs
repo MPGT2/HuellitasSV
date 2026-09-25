@@ -82,7 +82,7 @@ namespace HuellitasSV.API.Controllers
                 IdCuenta = cuenta.IdCuenta,
                 Nombre = nombre
             };
-            _context.Usuario.Add(usuario);
+            _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
 
             return StatusCode(StatusCodes.Status201Created, new
@@ -141,7 +141,7 @@ namespace HuellitasSV.API.Controllers
                 });
             }
 
-            var usuario = await _context.Usuario.FirstOrDefaultAsync(u => u.IdCuenta == cuenta.IdCuenta);
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.IdCuenta == cuenta.IdCuenta);
             if (usuario == null)
             {
                 return NotFound(new { error = "La cuenta no tiene un perfil de usuario asociado." });

@@ -35,7 +35,7 @@ public class SolicitudAdopcion
     /// <summary>
     /// Identificador del usuario solicitante (adoptante).
     /// </summary>
-    public int IdUsuario { get; set; }
+    public long IdUsuario { get; set; }
 
     /// <summary>
     /// Nombre de contacto confirmado por el usuario al enviar la solicitud.
