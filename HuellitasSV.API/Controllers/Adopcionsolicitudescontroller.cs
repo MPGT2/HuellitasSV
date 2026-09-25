@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,9 +10,11 @@ namespace HuellitasSV.API.Controllers;
 /// <summary>
 /// Controlador REST para que un usuario envíe una solicitud de adopción sobre una
 /// mascota publicada en el catálogo (HU-7).
+/// [SEGURIDAD] Solo accesible con token JWT de rol "Usuario"; el usuario se toma del token.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Usuario")]
 public class AdopcionSolicitudesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -31,7 +35,19 @@ public class AdopcionSolicitudesController : ControllerBase
             .Include(s => s.Mascota)
             .FirstOrDefaultAsync(s => s.IdSolicitud == id);
 
-        return solicitud is null ? NotFound() : Ok(solicitud);
+        if (solicitud is null)
+        {
+            return NotFound();
+        }
+
+        // [SEGURIDAD] El usuario solo puede consultar sus propias solicitudes.
+        if (long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioToken)
+            && solicitud.IdUsuario != idUsuarioToken)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "La solicitud no le pertenece." });
+        }
+
+        return Ok(solicitud);
     }
 
     /// <summary>
@@ -48,6 +64,18 @@ public class AdopcionSolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<SolicitudAdopcion>> Crear([FromBody] SolicitudAdopcion solicitud)
     {
+        // [SEGURIDAD] El usuario solicitante se toma del token JWT (se ignora el IdUsuario del body).
+        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+            ? idUsuarioClaim
+            : 0;
+
+        if (idUsuarioToken <= 0)
+        {
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+        }
+
+        solicitud.IdUsuario = idUsuarioToken;
+
         var mascota = await _context.Mascota.FindAsync(solicitud.IdMascota);
         if (mascota is null)
         {
