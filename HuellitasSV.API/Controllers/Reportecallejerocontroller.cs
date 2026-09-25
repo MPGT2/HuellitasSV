@@ -1,13 +1,19 @@
+using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HuellitasSV.API.Controllers;
 
 
+/// <summary>
+/// [SEGURIDAD] Solo accesible con token JWT de rol "Usuario"; el usuario se toma del token.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Usuario")]
 public class ReporteCallejeroController : ControllerBase
 {
     private const double RadioAlertaKm = 5.0;
@@ -31,6 +37,18 @@ public class ReporteCallejeroController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ReporteAnimal>> Crear([FromBody] ReporteAnimal reporte)
     {
+        // [SEGURIDAD] El usuario reportante se toma del token JWT (se ignora el IdUsuario del body).
+        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+            ? idUsuarioClaim
+            : 0;
+
+        if (idUsuarioToken <= 0)
+        {
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+        }
+
+        reporte.IdUsuario = idUsuarioToken;
+
         var usuario = await _context.Usuarios.FindAsync(reporte.IdUsuario);
         if (usuario is null)
         {

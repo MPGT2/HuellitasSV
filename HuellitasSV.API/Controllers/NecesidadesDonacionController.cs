@@ -1,10 +1,13 @@
-// [HU-XX] <Tu nombre>: Publicar necesidad urgente de insumos y cobertura automática.
-// Endpoints: GET /api/NecesidadesDonacion, POST /api/NecesidadesDonacion, POST /api/NecesidadesDonacion/{id}/aportar
+// [HU-09] Michael Menendez: Publicar necesidad urgente de insumos y cobertura automática.
+// Endpoints: GET /api/NecesidadesDonacion, POST /api/NecesidadesDonacion (🔒 Refugio), POST /api/NecesidadesDonacion/{id}/aportar (🔒 Usuario)
+// [SEGURIDAD] Publicar y aportar exigen token JWT; el refugio/usuario se toma del token.
 
 namespace HuellitasSV.API.Controllers;
 
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HuellitasSV.API.Data;
@@ -13,6 +16,8 @@ using HuellitasSV.API.Models;
 
 /// <summary>
 /// Controlador de necesidades urgentes de insumos publicadas por los refugios.
+/// [SEGURIDAD] Publicar exige token de rol "Refugio" (idRefugio del token) y aportar exige
+/// token de rol "Usuario" (idUsuario del token). El listado es público.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -67,16 +72,25 @@ public class NecesidadesDonacionController : ControllerBase
     /// <response code="201">Necesidad publicada.</response>
     /// <response code="400">Datos inválidos o el refugio no existe.</response>
     [HttpPost]
+    [Authorize(Roles = "Refugio")]
     public async Task<IActionResult> PublicarNecesidad([FromBody] PublicarNecesidadDto dto)
     {
+        // [SEGURIDAD] El refugio se toma del token JWT (se ignora el IdRefugio del body).
+        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+            ? idRefugioClaim
+            : 0;
+
+        if (idRefugioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
         // El refugio debe existir antes de publicar una necesidad a su nombre.
-        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == dto.IdRefugio);
+        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == idRefugioToken);
         if (!refugioExiste)
             return BadRequest(new { error = "El refugio especificado no existe." });
 
         var necesidad = new NecesidadDonacion
         {
-            IdRefugio = dto.IdRefugio,
+            IdRefugio = idRefugioToken,
             TipoInsumo = dto.TipoInsumo.ToLower(),
             Descripcion = dto.Descripcion,
             CantidadRequerida = dto.CantidadRequerida,
@@ -110,8 +124,13 @@ public class NecesidadesDonacionController : ControllerBase
     /// <response code="400">Cantidad inválida o la necesidad ya está cubierta.</response>
     /// <response code="404">Necesidad no encontrada.</response>
     [HttpPost("{id}/aportar")]
+    [Authorize(Roles = "Usuario")]
     public async Task<IActionResult> RegistrarAporte(long id, [FromBody] RegistrarAporteDto dto)
     {
+        // [SEGURIDAD] Solo usuarios autenticados pueden aportar (el aporte queda asociado a su perfil vía token).
+        if (!long.TryParse(User.FindFirstValue("idUsuario"), out _))
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
         var necesidad = await _context.NecesidadesDonacion.FindAsync(id);
         if (necesidad == null)
             return NotFound(new { error = "Necesidad de donación no encontrada." });
