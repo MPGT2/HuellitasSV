@@ -1,6 +1,7 @@
 // [HU-10] Michael Menendez: Estructura base - Host de la API.
 // Configura controladores, Swagger, CORS, formato de error 400 uniforme y el contexto EF Core.
 
+using System.Text.Json.Serialization;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Swagger;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,12 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Los estados se serializan como texto ("Pendiente", "Aprobada", "Atendido") en vez de números,
+        // igual que los estados de mascota del modelo del equipo.
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         // Formato de error de validación uniforme para todos los endpoints: { "errores": [ ... ] }.

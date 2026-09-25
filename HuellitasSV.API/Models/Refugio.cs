@@ -51,6 +51,16 @@ public class Refugio
     [Column("documentacion_url")]
     public string? DocumentacionUrl { get; set; }
 
+    /// <summary>Latitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).</summary>
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    [Column("latitud")]
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).</summary>
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    [Column("longitud")]
+    public double? Longitud { get; set; }
+
     /// <summary>Estado de aprobación: pendiente, aprobado o rechazado.</summary>
     [Required]
     [MaxLength(20)]
