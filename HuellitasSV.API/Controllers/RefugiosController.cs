@@ -1,6 +1,6 @@
-// [HU-02] Michael Menendez: Controlador de refugios.
+// [HU-02 / HU-24] Michael Menendez: Controlador de refugios.
 // HU-02: Registro de refugio (crea cuenta con rol "Refugio" y estado "pendiente") e inicio de sesión.
-// Los endpoints de aprobación y control (HU-24) se incorporarán en su respectiva rama feature.
+// HU-24: Aprobación y control de refugios por el administrador (listar pendientes, aprobar/rechazar).
 // Nota: los valores de estado se manejan en minúsculas (pendiente/aprobado/rechazado),
 // igual que los datos semilla de la base de datos.
 
@@ -14,8 +14,8 @@ using HuellitasSV.API.Models;
 namespace HuellitasSV.API.Controllers
 {
     /// <summary>
-    /// Controlador que gestiona el registro y la autenticación de los refugios
-    /// de HuellitasSV (HU-02). El ciclo de aprobación (HU-24) se incorporará luego.
+    /// Controlador que gestiona el registro, la autenticación y el ciclo de aprobación
+    /// de los refugios de HuellitasSV (HU-02 y HU-24).
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -83,6 +83,25 @@ namespace HuellitasSV.API.Controllers
                 .ToListAsync();
 
             return Ok(mascotas);
+        }
+
+        /// <summary>
+        /// [HU-24] Obtiene la lista de refugios cuyo estado de aprobación sea "pendiente",
+        /// para que el administrador pueda revisarlos y aprobarlos o rechazarlos.
+        /// </summary>
+        /// <returns>Lista de refugios pendientes de aprobación en formato JSON.</returns>
+        /// <response code="200">Devuelve la lista de refugios pendientes.</response>
+        [HttpGet("pendientes")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<Refugio>>> GetPendientes()
+        {
+            var refugios = await _context.Refugio
+                .AsNoTracking()
+                .Where(r => r.EstadoAprobacion == "pendiente")
+                .OrderBy(r => r.NombreOrganizacion)
+                .ToListAsync();
+
+            return Ok(refugios);
         }
 
         // ============================================================
@@ -205,6 +224,58 @@ namespace HuellitasSV.API.Controllers
         }
 
         // ============================================================
+        // 3) MÉTODOS [HttpPut]
+        // ============================================================
+
+        /// <summary>
+        /// [HU-24] Aprueba o rechaza un refugio cambiando su estado de aprobación.
+        /// El estado recibido se normaliza y solo se admite "aprobado" o "rechazado".
+        /// </summary>
+        /// <param name="id">Identificador del refugio.</param>
+        /// <param name="dto">DTO con el nuevo estado ("aprobado" o "rechazado").</param>
+        /// <returns>Confirmación del cambio de estado en formato JSON.</returns>
+        /// <response code="200">Estado actualizado correctamente.</response>
+        /// <response code="400">Si el estado indicado no es válido.</response>
+        /// <response code="404">Si el refugio no existe.</response>
+        [HttpPut("{id}/estado")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> CambiarEstado(long id, CambiarEstadoRefugioDto dto)
+        {
+            var nuevoEstado = dto.Estado?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (nuevoEstado != "aprobado" && nuevoEstado != "rechazado")
+            {
+                return BadRequest(new { error = "Estado no válido. Solo se admite 'aprobado' o 'rechazado'." });
+            }
+
+            var refugio = await _context.Refugio.FindAsync(id);
+            if (refugio == null)
+            {
+                return NotFound(new { error = "Refugio no encontrado." });
+            }
+
+            refugio.EstadoAprobacion = nuevoEstado;
+
+            // Se mantiene sincronizada la cuenta asociada (la conexión refugio -> cuenta).
+            var cuenta = await _context.Cuenta.FindAsync(refugio.IdCuenta);
+            if (cuenta != null)
+            {
+                cuenta.Estado = nuevoEstado;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = $"El estado del refugio se actualizó a: {nuevoEstado}.",
+                idRefugio = refugio.IdRefugio,
+                nombreOrganizacion = refugio.NombreOrganizacion,
+                estadoAprobacion = refugio.EstadoAprobacion
+            });
+        }
+
+        // ============================================================
         // REGLA DE NEGOCIO PRIVADA COMPARTIDA
         // ============================================================
 
@@ -300,5 +371,15 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Contraseña de la cuenta del refugio.</summary>
         [Required]
         public string Contrasena { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Nuevo estado de aprobación para un refugio (HU-24).
+    /// </summary>
+    public class CambiarEstadoRefugioDto
+    {
+        /// <summary>Nuevo estado: "aprobado" o "rechazado".</summary>
+        [Required]
+        public string Estado { get; set; } = string.Empty;
     }
 }

@@ -20,6 +20,51 @@ Accept: application/json
 GET {{Host}}/api/Refugios/1/mascotas
 Accept: application/json
 
+### [HU-24] Refugios pendientes de aprobación (panel admin)
+GET {{Host}}/api/Refugios/pendientes
+Accept: application/json
+
+### [HU-02] Registrar refugio (queda en estado "pendiente")
+POST {{Host}}/api/Refugios/registro
+Content-Type: application/json
+
+{
+  "nombreOrganizacion": "Refugio Patitas Soyapango",
+  "correo": "patitas@refugio.org",
+  "contrasena": "Refugio2026!",
+  "departamento": "San Salvador",
+  "municipio": "Soyapango",
+  "contacto": "2222-0000"
+}
+
+### [HU-02] Inicio de sesión del refugio (solo cuentas aprobadas)
+POST {{Host}}/api/Refugios/login
+Content-Type: application/json
+
+{
+  "correo": "contacto@huellitassv.org",
+  "contrasena": "Refugio2026!"
+}
+
+### [HU-01] Registrar usuario cliente (acceso inmediato, sin aprobación)
+POST {{Host}}/api/Usuarios/registro
+Content-Type: application/json
+
+{
+  "nombre": "María López",
+  "correo": "maria.lopez@correo.com",
+  "contrasena": "Usuario2026!"
+}
+
+### [HU-01] Inicio de sesión de usuario (activo | inactivo | bloqueado)
+POST {{Host}}/api/Usuarios/login
+Content-Type: application/json
+
+{
+  "correo": "marialopez@correo.com",
+  "contrasena": "Usuario2026!"
+}
+
 ### [HU-9] Registrar mascota
 POST {{Host}}/api/Mascotas
 Content-Type: application/json
@@ -49,122 +94,3 @@ POST {{Host}}/api/Mascotas/1/imagen
 Content-Type: image/png
 
 <ruta\del\archivo.png>
-
-### ============================================================
-### HU-7: Envío de Solicitud de Adopción — Alfredo López
-### ============================================================
-
-# Enviar solicitud de adopción (se crea en estado "Pendiente" y notifica al refugio)
-POST {{Host}}/api/solicitudesadopcion
-Content-Type: application/json
-
-{
-  "idMascota": 1,
-  "idUsuario": 1,
-  "nombreContacto": "Alfredo López",
-  "telefonoContacto": "7777-7777",
-  "correoContacto": "alfredo@correo.com"
-}
-
-### Repetir la misma solicitud -> debe responder 409 Conflict
-# POST {{Host}}/api/solicitudesadopcion
-# Content-Type: application/json
-#
-# {
-#   "idMascota": 1,
-#   "idUsuario": 1,
-#   "nombreContacto": "Alfredo López",
-#   "telefonoContacto": "7777-7777",
-#   "correoContacto": "alfredo@correo.com"
-# }
-
-### Consultar el estado de una solicitud
-GET {{Host}}/api/solicitudesadopcion/1
-
-### ============================================================
-### HU-8: Gestión de solicitudes de adopción (Refugio) — Alfredo López
-### ============================================================
-
-# Panel del refugio: solicitudes recibidas (estado, mascota y datos del solicitante)
-GET {{Host}}/api/gestionsolicitudes?refugioId=1&estado=Pendiente
-
-# Aprobar solicitud: reserva la mascota ("reservada") y notifica al usuario
-PUT {{Host}}/api/gestionsolicitudes/1/aprobar
-Content-Type: application/json
-
-{
-  "idRefugio": 1,
-  "comentarioDecision": "Aprobado después de la visita al refugio"
-}
-
-### Rechazar solicitud: notifica al usuario y deja la mascota disponible
-# PUT {{Host}}/api/gestionsolicitudes/1/rechazar
-# Content-Type: application/json
-#
-# {
-#   "idRefugio": 1,
-#   "comentarioDecision": "No cumple los requisitos de adopción"
-# }
-
-### ============================================================
-### HU-14: Creación de Reporte de Animal Callejero — Alfredo López
-### ============================================================
-
-# Crear reporte con ubicación (notifica a los refugios a menos de 5 km)
-POST {{Host}}/api/reportesanimales
-Content-Type: application/json
-
-{
-  "idUsuario": 1,
-  "descripcion": "Cachorro perdido junto al parque, parece asustado y sin collar",
-  "fotoUrl": "https://ejemplo.com/fotos/cachorro.jpg",
-  "latitud": 13.6929,
-  "longitud": -89.2182
-}
-
-### Enviar reporte SIN ubicación -> debe responder 400 y exigir el dato
-# POST {{Host}}/api/reportesanimales
-# Content-Type: application/json
-#
-# {
-#   "idUsuario": 1,
-#   "descripcion": "Gato callejero en la esquina",
-#   "fotoUrl": "https://ejemplo.com/fotos/gato.jpg"
-# }
-
-### Consultar un reporte creado
-GET {{Host}}/api/reportesanimales/1
-
-### ============================================================
-### HU-15: Recepción de Reportes de Rescate (panel del refugio) — Alfredo López
-### ============================================================
-
-# Lista de reportes pendientes cerca del refugio (foto, ubicación y estado)
-GET {{Host}}/api/reportesrescate?refugioId=1&estado=Pendiente
-
-# Marcar reporte como atendido (lo retira de la lista de pendientes)
-PUT {{Host}}/api/reportesrescate/1/atendido
-Content-Type: application/json
-
-{
-  "idRefugio": 1
-}
-
-### ============================================================
-### Notificaciones (HU-7, HU-8 y HU-14) — Alfredo López
-### ============================================================
-
-# Notificaciones del refugio
-GET {{Host}}/api/notificaciones?refugioId=1
-
-# Notificaciones del usuario
-GET {{Host}}/api/notificaciones?usuarioId=1
-
-# Marcar notificación como leída
-PUT {{Host}}/api/notificaciones/1/leida
-
-### ============================================================
-### Nota: el endpoint de usuarios (HU previa) fue retirado por la
-### reestructuración a "cuenta"; los usuarios de prueba se siembran
-### directo en la base con SQL.
-### ============================================================

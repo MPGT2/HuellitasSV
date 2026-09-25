@@ -54,6 +54,13 @@ public class DtoExamplesSchemaFilter : ISchemaFilter
                 ["contacto"] = "2222-0000"
             };
         }
+        else if (context.Type == typeof(HuellitasSV.API.Controllers.CambiarEstadoRefugioDto))
+        {
+            concrete.Example = new System.Text.Json.Nodes.JsonObject
+            {
+                ["estado"] = "aprobado"
+            };
+        }
         else if (context.Type == typeof(HuellitasSV.API.Controllers.LoginRefugioDto))
         {
             concrete.Example = new System.Text.Json.Nodes.JsonObject
