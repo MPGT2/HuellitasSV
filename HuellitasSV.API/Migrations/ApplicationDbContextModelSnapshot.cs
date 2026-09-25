@@ -22,6 +22,71 @@ namespace HuellitasSV.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("HuellitasSV.API.Models.Anuncio", b =>
+                {
+                    b.Property<long>("IdAnuncio")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_anuncio");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdAnuncio"));
+
+                    b.Property<string>("ContactoTienda")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasColumnName("contacto_tienda");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("descripcion");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("estado");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fecha_aprobacion");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fecha_creacion");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fecha_fin");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fecha_inicio");
+
+                    b.Property<string>("ImagenUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("imagen_url");
+
+                    b.Property<string>("NombreTienda")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("nombre_tienda");
+
+                    b.Property<bool>("PagoConfirmado")
+                        .HasColumnType("bit")
+                        .HasColumnName("pago_confirmado");
+
+                    b.Property<decimal>("Precio")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("precio");
+
+                    b.HasKey("IdAnuncio");
+
+                    b.ToTable("anuncio");
+                });
+
             modelBuilder.Entity("HuellitasSV.API.Models.Cuenta", b =>
                 {
                     b.Property<long>("IdCuenta")
@@ -56,9 +121,6 @@ namespace HuellitasSV.API.Migrations
                         .HasColumnName("rol");
 
                     b.HasKey("IdCuenta");
-
-                    b.HasIndex("Correo")
-                        .IsUnique();
 
                     b.ToTable("cuenta");
 
@@ -229,6 +291,78 @@ namespace HuellitasSV.API.Migrations
                     b.HasData(
                         new
                         {
+                            IdMascota = 1L,
+                            EdadMeses = 24,
+                            Especie = "perro",
+                            Estado = "disponible",
+                            EstadoSalud = "sano",
+                            FechaRegistro = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 1L,
+                            Nombre = "Firulais",
+                            Tamano = "mediano"
+                        },
+                        new
+                        {
+                            IdMascota = 2L,
+                            EdadMeses = 12,
+                            Especie = "gato",
+                            Estado = "disponible",
+                            EstadoSalud = "sano",
+                            FechaRegistro = new DateTime(2026, 2, 20, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 1L,
+                            Nombre = "Michi",
+                            Tamano = "pequeño"
+                        },
+                        new
+                        {
+                            IdMascota = 3L,
+                            EdadMeses = 36,
+                            Especie = "perro",
+                            Estado = "disponible",
+                            EstadoSalud = "en_tratamiento",
+                            FechaRegistro = new DateTime(2026, 3, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 1L,
+                            Nombre = "Rex",
+                            Tamano = "grande"
+                        },
+                        new
+                        {
+                            IdMascota = 4L,
+                            EdadMeses = 18,
+                            Especie = "perro",
+                            Estado = "adoptada",
+                            EstadoSalud = "sano",
+                            FechaRegistro = new DateTime(2026, 1, 5, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 2L,
+                            Nombre = "Luna",
+                            Tamano = "mediano"
+                        },
+                        new
+                        {
+                            IdMascota = 5L,
+                            EdadMeses = 6,
+                            Especie = "gato",
+                            Estado = "disponible",
+                            EstadoSalud = "sano",
+                            FechaRegistro = new DateTime(2026, 4, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 2L,
+                            Nombre = "Simba",
+                            Tamano = "pequeño"
+                        },
+                        new
+                        {
+                            IdMascota = 6L,
+                            EdadMeses = 48,
+                            Especie = "perro",
+                            Estado = "en_tratamiento",
+                            EstadoSalud = "crónico",
+                            FechaRegistro = new DateTime(2026, 2, 28, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IdRefugio = 3L,
+                            Nombre = "Rocky",
+                            Tamano = "grande"
+                        },
+                        new
+                        {
                             IdMascota = 9001L,
                             EdadMeses = 48,
                             Especie = "perro",
@@ -249,7 +383,7 @@ namespace HuellitasSV.API.Migrations
                             FechaRegistro = new DateTime(2026, 5, 20, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 1L,
                             Nombre = "Mia",
-                            Tamano = "pequeÃ±o"
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -269,7 +403,7 @@ namespace HuellitasSV.API.Migrations
                             EdadMeses = 18,
                             Especie = "gato",
                             Estado = "disponible",
-                            EstadoSalud = "crÃ³nico",
+                            EstadoSalud = "crónico",
                             FechaRegistro = new DateTime(2026, 6, 25, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 2L,
                             Nombre = "Coco",
@@ -298,7 +432,7 @@ namespace HuellitasSV.API.Migrations
                             IdRefugio = 9001L,
                             ImagenUrl = "https://placekitten.com/400/300",
                             Nombre = "Nina",
-                            Tamano = "pequeÃ±o"
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -309,8 +443,8 @@ namespace HuellitasSV.API.Migrations
                             EstadoSalud = "discapacidad",
                             FechaRegistro = new DateTime(2026, 8, 2, 10, 0, 0, 0, DateTimeKind.Utc),
                             IdRefugio = 9001L,
-                            Nombre = "SimÃ³n",
-                            Tamano = "pequeÃ±o"
+                            Nombre = "Simón",
+                            Tamano = "pequeño"
                         },
                         new
                         {
@@ -353,38 +487,53 @@ namespace HuellitasSV.API.Migrations
 
             modelBuilder.Entity("HuellitasSV.API.Models.NecesidadDonacion", b =>
                 {
-                    b.Property<int>("IdNecesidad")
+                    b.Property<long>("IdNecesidad")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_necesidad");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdNecesidad"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdNecesidad"));
 
                     b.Property<decimal>("CantidadCubierta")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("cantidad_cubierta");
 
                     b.Property<decimal>("CantidadRequerida")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("cantidad_requerida");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("descripcion");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("estado");
 
                     b.Property<DateTime>("FechaPublicacion")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fecha_publicacion");
 
                     b.Property<long>("IdRefugio")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_refugio");
 
-                    b.Property<string>("Titulo")
+                    b.Property<string>("TipoInsumo")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("tipo_insumo");
 
                     b.HasKey("IdNecesidad");
 
                     b.HasIndex("IdRefugio");
 
-                    b.ToTable("NecesidadesDonacion");
+                    b.ToTable("necesidad_donacion");
                 });
 
             modelBuilder.Entity("HuellitasSV.API.Models.Notificacion", b =>
@@ -401,8 +550,8 @@ namespace HuellitasSV.API.Migrations
                     b.Property<long?>("IdRefugio")
                         .HasColumnType("bigint");
 
-                    b.Property<int?>("IdUsuario")
-                        .HasColumnType("int");
+                    b.Property<long?>("IdUsuario")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("Leida")
                         .HasColumnType("bit");
@@ -486,6 +635,38 @@ namespace HuellitasSV.API.Migrations
                     b.HasData(
                         new
                         {
+                            IdRefugio = 1L,
+                            Contacto = "contacto@huellitassv.org",
+                            Departamento = "San Salvador",
+                            DocumentacionUrl = "https://huellitassv.org/docs",
+                            EstadoAprobacion = "aprobado",
+                            IdCuenta = 1001L,
+                            Municipio = "San Salvador",
+                            NombreOrganizacion = "Refugio Huellitas San Salvador"
+                        },
+                        new
+                        {
+                            IdRefugio = 2L,
+                            Contacto = "adopciones@proteccionsv.org",
+                            Departamento = "La Libertad",
+                            EstadoAprobacion = "aprobado",
+                            IdCuenta = 1002L,
+                            Municipio = "Santa Tecla",
+                            NombreOrganizacion = "Protección Animal Santa Tecla"
+                        },
+                        new
+                        {
+                            IdRefugio = 3L,
+                            Contacto = "info@alberguesm.org",
+                            Departamento = "San Miguel",
+                            DocumentacionUrl = "https://alberguesm.org/documentos",
+                            EstadoAprobacion = "pendiente",
+                            IdCuenta = 1003L,
+                            Municipio = "San Miguel",
+                            NombreOrganizacion = "Albergue Canino San Miguel"
+                        },
+                        new
+                        {
                             IdRefugio = 9001L,
                             Contacto = "7770-0001",
                             Departamento = "San Salvador",
@@ -519,12 +700,12 @@ namespace HuellitasSV.API.Migrations
                         {
                             IdRefugio = 9004L,
                             Contacto = "7770-0004",
-                            Departamento = "UsulutÃ¡n",
+                            Departamento = "Usulután",
                             DocumentacionUrl = "https://patitasusulutan.org/docs",
                             EstadoAprobacion = "pendiente",
                             IdCuenta = 9004L,
-                            Municipio = "UsulutÃ¡n",
-                            NombreOrganizacion = "Patitas de UsulutÃ¡n"
+                            Municipio = "Usulután",
+                            NombreOrganizacion = "Patitas de Usulután"
                         },
                         new
                         {
@@ -535,52 +716,6 @@ namespace HuellitasSV.API.Migrations
                             IdCuenta = 9005L,
                             Municipio = "Chalatenango",
                             NombreOrganizacion = "Ayuda Animal Chalatenango"
-                        });
-                });
-
-            modelBuilder.Entity("HuellitasSV.API.Models.Usuario", b =>
-                {
-                    b.Property<long>("IdUsuario")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_usuario");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdUsuario"));
-
-                    b.Property<long>("IdCuenta")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_cuenta");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("nombre");
-
-                    b.HasKey("IdUsuario");
-
-                    b.HasIndex("IdCuenta");
-
-                    b.ToTable("usuario");
-
-                    b.HasData(
-                        new
-                        {
-                            IdUsuario = 9001L,
-                            IdCuenta = 9006L,
-                            Nombre = "MarÃ­a LÃ³pez"
-                        },
-                        new
-                        {
-                            IdUsuario = 9002L,
-                            IdCuenta = 9007L,
-                            Nombre = "Carlos PÃ©rez"
-                        },
-                        new
-                        {
-                            IdUsuario = 9003L,
-                            IdCuenta = 9008L,
-                            Nombre = "Ana GÃ³mez"
                         });
                 });
 
@@ -613,8 +748,8 @@ namespace HuellitasSV.API.Migrations
                     b.Property<long?>("IdRefugio")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("IdUsuario")
-                        .HasColumnType("int");
+                    b.Property<long>("IdUsuario")
+                        .HasColumnType("bigint");
 
                     b.Property<double>("Latitud")
                         .HasColumnType("float");
@@ -658,8 +793,8 @@ namespace HuellitasSV.API.Migrations
                     b.Property<long>("IdMascota")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("IdUsuario")
-                        .HasColumnType("int");
+                    b.Property<long>("IdUsuario")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("NombreContacto")
                         .IsRequired()
@@ -682,36 +817,48 @@ namespace HuellitasSV.API.Migrations
 
             modelBuilder.Entity("HuellitasSV.API.Models.Usuario", b =>
                 {
-                    b.Property<int>("IdUsuario")
+                    b.Property<long>("IdUsuario")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_usuario");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdUsuario"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdUsuario"));
 
-                    b.Property<string>("Contrasena")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Correo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("FechaRegistro")
-                        .HasColumnType("datetime2");
+                    b.Property<long>("IdCuenta")
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_cuenta");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Telefono")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("nombre");
 
                     b.HasKey("IdUsuario");
 
-                    b.HasIndex("Correo")
-                        .IsUnique();
+                    b.HasIndex("IdCuenta");
 
-                    b.ToTable("Usuarios");
+                    b.ToTable("usuario");
+
+                    b.HasData(
+                        new
+                        {
+                            IdUsuario = 9001L,
+                            IdCuenta = 9006L,
+                            Nombre = "María López"
+                        },
+                        new
+                        {
+                            IdUsuario = 9002L,
+                            IdCuenta = 9007L,
+                            Nombre = "Carlos Pérez"
+                        },
+                        new
+                        {
+                            IdUsuario = 9003L,
+                            IdCuenta = 9008L,
+                            Nombre = "Ana Gómez"
+                        });
                 });
 
             modelBuilder.Entity("HuellitasSV.API.Models.Mascota", b =>

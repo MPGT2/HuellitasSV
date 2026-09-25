@@ -1,77 +1,219 @@
 // [HU-XX] <Tu nombre>: Gestión y cobro de espacios publicitarios a tiendas (administrador).
-// Ciclo de vida: "pendiente" -> "activo" (aprobado por el admin) -> "vencido" (al llegar fecha_fin).
-// La visibilidad pública exige además pago_confirmado = true y que fecha_inicio ya haya iniciado.
+// Endpoints: GET listar, POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar.
+// La expiración a "vencido" se recalcula automáticamente en cada consulta, ya que el
+// proyecto no cuenta con un job en segundo plano (scheduler).
 
-namespace HuellitasSV.API.Models;
+namespace HuellitasSV.API.Controllers;
 
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using HuellitasSV.API.Data;
+using HuellitasSV.API.DTOs;
+using HuellitasSV.API.Models;
 
 /// <summary>
-/// Espacio publicitario solicitado por una tienda y gestionado por el administrador
-/// de la plataforma (aprobación, cobro y expiración automática).
+/// Controlador para que el administrador gestione y cobre espacios publicitarios a las tiendas.
 /// </summary>
-[Table("anuncio")]
-public class Anuncio
+[ApiController]
+[Route("api/[controller]")]
+public class AnunciosController : ControllerBase
 {
-    /// <summary>Identificador único (identity).</summary>
-    [Key]
-    [Column("id_anuncio")]
-    public long IdAnuncio { get; set; }
+    private readonly ApplicationDbContext _context;
 
-    /// <summary>Nombre de la tienda que solicita el espacio publicitario.</summary>
-    [Required]
-    [MaxLength(100)]
-    [Column("nombre_tienda")]
-    public string NombreTienda { get; set; } = string.Empty;
+    /// <summary>
+    /// Inicializa el controlador con el contexto de base de datos.
+    /// </summary>
+    public AnunciosController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
 
-    /// <summary>Correo o teléfono de contacto de la tienda (opcional).</summary>
-    [MaxLength(150)]
-    [Column("contacto_tienda")]
-    public string? ContactoTienda { get; set; }
+    /// <summary>
+    /// Lista los anuncios. Por defecto solo devuelve los visibles para la comunidad:
+    /// estado "activo", con pago confirmado y dentro de su rango de fechas.
+    /// Use estado=pendiente, estado=vencido o estado=todas para la vista de administración.
+    /// </summary>
+    /// <response code="200">Lista de anuncios.</response>
+    [HttpGet]
+    public async Task<IActionResult> GetAnuncios([FromQuery] string? estado = "activo")
+    {
+        // Criterio de aceptación 3: expira automáticamente lo que ya venció antes de listar.
+        await ActualizarVencidosAsync();
 
-    /// <summary>URL de la imagen/banner del anuncio (opcional).</summary>
-    [MaxLength(255)]
-    [Column("imagen_url")]
-    public string? ImagenUrl { get; set; }
+        var query = _context.Anuncios.AsQueryable();
+        var ahora = DateTime.UtcNow;
 
-    /// <summary>Descripción breve del anuncio (opcional).</summary>
-    [MaxLength(255)]
-    [Column("descripcion")]
-    public string? Descripcion { get; set; }
+        if (string.IsNullOrEmpty(estado) || estado.Equals("activo", StringComparison.OrdinalIgnoreCase))
+        {
+            // Vista pública: lo realmente visible a los usuarios (criterio de aceptación 2).
+            query = query.Where(a => a.Estado == "activo"
+                && a.PagoConfirmado
+                && a.FechaInicio <= ahora
+                && a.FechaFin >= ahora);
+        }
+        else if (!estado.Equals("todas", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(a => a.Estado == estado.ToLower());
+        }
 
-    /// <summary>Monto cobrado por el espacio publicitario.</summary>
-    [Required]
-    [Column("precio", TypeName = "decimal(10,2)")]
-    public decimal Precio { get; set; }
+        var anuncios = await query
+            .OrderByDescending(a => a.FechaCreacion)
+            .Select(a => new
+            {
+                a.IdAnuncio,
+                a.NombreTienda,
+                a.ContactoTienda,
+                a.ImagenUrl,
+                a.Descripcion,
+                a.Precio,
+                a.FechaInicio,
+                a.FechaFin,
+                a.PagoConfirmado,
+                a.Estado,
+                a.FechaAprobacion
+            })
+            .ToListAsync();
 
-    /// <summary>Fecha en que el anuncio debe empezar a mostrarse.</summary>
-    [Required]
-    [Column("fecha_inicio")]
-    public DateTime FechaInicio { get; set; }
+        return Ok(anuncios);
+    }
 
-    /// <summary>Fecha en que el anuncio deja de mostrarse (vence).</summary>
-    [Required]
-    [Column("fecha_fin")]
-    public DateTime FechaFin { get; set; }
+    /// <summary>
+    /// Registra la solicitud de una tienda para publicar un anuncio. Queda en
+    /// estado "pendiente" hasta que el administrador la revise.
+    /// </summary>
+    /// <response code="201">Solicitud registrada.</response>
+    /// <response code="400">Datos inválidos (ej. fecha de fin anterior a la de inicio).</response>
+    [HttpPost]
+    public async Task<IActionResult> CrearAnuncio([FromBody] CrearAnuncioDto dto)
+    {
+        if (dto.FechaFin <= dto.FechaInicio)
+            return BadRequest(new { error = "La fecha de fin debe ser posterior a la fecha de inicio." });
 
-    /// <summary>Indica si el pago del espacio publicitario ya fue confirmado.</summary>
-    [Required]
-    [Column("pago_confirmado")]
-    public bool PagoConfirmado { get; set; } = false;
+        var anuncio = new Anuncio
+        {
+            NombreTienda = dto.NombreTienda,
+            ContactoTienda = dto.ContactoTienda,
+            ImagenUrl = dto.ImagenUrl,
+            Descripcion = dto.Descripcion,
+            Precio = dto.Precio,
+            FechaInicio = dto.FechaInicio,
+            FechaFin = dto.FechaFin,
+            PagoConfirmado = false,
+            Estado = "pendiente",
+            FechaCreacion = DateTime.UtcNow
+        };
 
-    /// <summary>Estado: "pendiente", "activo", "rechazado" o "vencido".</summary>
-    [Required]
-    [MaxLength(20)]
-    [Column("estado")]
-    public string Estado { get; set; } = "pendiente";
+        _context.Anuncios.Add(anuncio);
+        await _context.SaveChangesAsync();
 
-    /// <summary>Fecha en que el administrador aprobó el anuncio (nula si aún no se aprueba).</summary>
-    [Column("fecha_aprobacion")]
-    public DateTime? FechaAprobacion { get; set; }
+        return CreatedAtAction(nameof(GetAnuncios), new { id = anuncio.IdAnuncio }, anuncio);
+    }
 
-    /// <summary>Fecha en que la tienda envió la solicitud (UTC).</summary>
-    [Required]
-    [Column("fecha_creacion")]
-    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+    /// <summary>
+    /// Aprueba un anuncio pendiente. Criterio de aceptación: al aprobarlo, el sistema
+    /// lo activa; queda realmente visible a los usuarios solo cuando además el pago
+    /// esté confirmado y su fecha de inicio haya llegado.
+    /// </summary>
+    /// <response code="200">Anuncio aprobado.</response>
+    /// <response code="400">El anuncio no está en estado "pendiente".</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpPost("{id}/aprobar")]
+    public async Task<IActionResult> AprobarAnuncio(long id)
+    {
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        if (anuncio.Estado != "pendiente")
+            return BadRequest(new { error = $"Solo se pueden aprobar anuncios en estado 'pendiente'. Estado actual: {anuncio.Estado}." });
+
+        anuncio.Estado = "activo";
+        anuncio.FechaAprobacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            mensaje = "Anuncio aprobado y activado.",
+            anuncio.IdAnuncio,
+            anuncio.Estado,
+            anuncio.PagoConfirmado,
+            aviso = anuncio.PagoConfirmado
+                ? "El anuncio ya es visible para los usuarios (según su rango de fechas)."
+                : "El anuncio NO será visible para los usuarios hasta que se confirme el pago."
+        });
+    }
+
+    /// <summary>
+    /// Confirma el pago de un anuncio. Criterio de aceptación: si el pago no está
+    /// confirmado al llegar la fecha de activación, el anuncio no se publica hasta
+    /// que se registre el pago mediante este endpoint.
+    /// </summary>
+    /// <response code="200">Pago confirmado.</response>
+    /// <response code="400">El anuncio ya está vencido.</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpPost("{id}/confirmar-pago")]
+    public async Task<IActionResult> ConfirmarPago(long id)
+    {
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        if (anuncio.Estado == "vencido")
+            return BadRequest(new { error = "No se puede confirmar el pago de un anuncio vencido." });
+
+        anuncio.PagoConfirmado = true;
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            mensaje = "Pago confirmado.",
+            anuncio.IdAnuncio,
+            anuncio.PagoConfirmado,
+            anuncio.Estado
+        });
+    }
+
+    /// <summary>
+    /// Rechaza un anuncio pendiente. No forma parte de los criterios de aceptación
+    /// originales, pero completa el flujo de administración (aprobar/rechazar).
+    /// </summary>
+    /// <response code="200">Anuncio rechazado.</response>
+    /// <response code="400">El anuncio no está en estado "pendiente".</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpPost("{id}/rechazar")]
+    public async Task<IActionResult> RechazarAnuncio(long id)
+    {
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        if (anuncio.Estado != "pendiente")
+            return BadRequest(new { error = "Solo se pueden rechazar anuncios en estado 'pendiente'." });
+
+        anuncio.Estado = "rechazado";
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Anuncio rechazado.", anuncio.IdAnuncio, anuncio.Estado });
+    }
+
+    /// <summary>
+    /// Criterio de aceptación: cuando un anuncio vence (llega su fecha de fin),
+    /// el sistema lo pasa automáticamente a estado "vencido" y deja de mostrarlo.
+    /// </summary>
+    private async Task ActualizarVencidosAsync()
+    {
+        var ahora = DateTime.UtcNow;
+        var vencidos = await _context.Anuncios
+            .Where(a => a.Estado == "activo" && a.FechaFin < ahora)
+            .ToListAsync();
+
+        if (vencidos.Count == 0) return;
+
+        foreach (var anuncio in vencidos)
+            anuncio.Estado = "vencido";
+
+        await _context.SaveChangesAsync();
+    }
 }
