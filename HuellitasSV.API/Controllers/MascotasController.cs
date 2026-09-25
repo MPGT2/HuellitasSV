@@ -8,10 +8,12 @@ namespace HuellitasSV.API.Controllers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.DTOs;
 using HuellitasSV.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -281,9 +283,18 @@ public class MascotasController : ControllerBase
     /// <response code="201">Mascota registrada correctamente.</response>
     /// <response code="400">Datos inválidos, refugio inexistente o error al procesar la imagen.</response>
     [HttpPost]
+    [Authorize(Roles = "Refugio")]
     public async Task<ActionResult<MascotaRespuestaDto>> RegistrarMascota([FromForm] RegistrarMascotaDto dto, IFormFile? imagen)
     {
-        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == dto.IdRefugio);
+        // [SEGURIDAD] El refugio dueño se toma del token JWT (se ignora el IdRefugio del formulario).
+        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+            ? idRefugioClaim
+            : 0;
+
+        if (idRefugioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
+        var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == idRefugioToken);
         if (!refugioExiste)
             return BadRequest(new { error = "El refugio especificado no existe." });
 
@@ -312,7 +323,7 @@ public class MascotasController : ControllerBase
 
         var mascota = new Mascota
         {
-            IdRefugio = dto.IdRefugio,
+            IdRefugio = idRefugioToken,
             Nombre = dto.Nombre ?? string.Empty,
             Especie = dto.Especie.ToLower(),
             Tamano = dto.Tamano.ToLower(),
@@ -355,11 +366,19 @@ public class MascotasController : ControllerBase
     /// <response code="400">Transición de estado no permitida.</response>
     /// <response code="404">Mascota no encontrada.</response>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Refugio")]
     public async Task<ActionResult<MascotaRespuestaDto>> ActualizarMascota(long id, [FromBody] ActualizarMascotaDto dto)
     {
         var mascotaExistente = await _context.Mascota.FindAsync(id);
         if (mascotaExistente is null)
             return NotFound(new { error = "Mascota no encontrada." });
+
+        // [SEGURIDAD] Solo el refugio dueño puede modificar la mascota.
+        if (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
+            && mascotaExistente.IdRefugio != idRefugioToken)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "La mascota no pertenece a su refugio." });
+        }
 
         if (!string.IsNullOrEmpty(dto.Estado)
             && !EsTransicionEstadoValida(mascotaExistente.Estado, dto.Estado.ToLower(), dto.JustificacionCambioEstado))
@@ -411,11 +430,19 @@ public class MascotasController : ControllerBase
     /// <response code="200">Mascota eliminada correctamente.</response>
     /// <response code="404">Mascota no encontrada.</response>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Refugio")]
     public async Task<ActionResult> EliminarMascota(long id)
     {
         var mascota = await _context.Mascota.FindAsync(id);
         if (mascota is null)
             return NotFound(new { error = "Mascota no encontrada." });
+
+        // [SEGURIDAD] Solo el refugio dueño puede eliminar la mascota.
+        if (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
+            && mascota.IdRefugio != idRefugioToken)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "La mascota no pertenece a su refugio." });
+        }
 
         _context.Mascota.Remove(mascota);
         await _context.SaveChangesAsync();

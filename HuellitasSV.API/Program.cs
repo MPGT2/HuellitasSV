@@ -1,11 +1,15 @@
 // [HU-10] Michael Menendez: Estructura base - Host de la API.
 // Configura controladores, Swagger, CORS, formato de error 400 uniforme y el contexto EF Core.
 
+using System.Text;
 using System.Text.Json.Serialization;
 using HuellitasSV.API.Data;
+using HuellitasSV.API.Security;
 using HuellitasSV.API.Swagger;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,6 +60,21 @@ builder.Services.AddSwaggerGen(options =>
     // Ejemplos válidos para los DTOs en la documentación interactiva.
     options.SchemaFilter<DtoExamplesSchemaFilter>();
 
+    // [SEGURIDAD] Botón "Authorize" en Swagger: permite pegar el JWT para probar endpoints protegidos.
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = JwtBearerDefaults.AuthenticationScheme,
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese el token JWT (solo el token, sin el prefijo Bearer)."
+    });
+    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer")] = new List<string>()
+    });
+
     // Documentación XML de los comentarios de código.
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -65,6 +84,30 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// [SEGURIDAD] Autenticación con JWT: los endpoints de gestión exigen un token firmado
+// emitido por AuthController/UsuariosController/RefugiosController con el rol de la cuenta.
+builder.Services.AddScoped<HuellitasSV.API.Security.JwtTokenService>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -83,6 +126,10 @@ else
 }
 
 app.UseCors("PermitirFrontend");
+
+// [SEGURIDAD] Orden obligatorio: autenticación (valida el JWT) y luego autorización ([Authorize]/[AllowAnonymous]).
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

@@ -153,7 +153,9 @@ public class ApplicationDbContext : DbContext
 
         // ===== Datos semilla =====
         // Contraseñas con hash PBKDF2 (ASP.NET Core Identity v3).
+        // Admin: admin@huellitassv.org / Admin2026!
         modelBuilder.Entity<Cuenta>().HasData(
+            new Cuenta { IdCuenta = 1, Correo = "admin@huellitassv.org", Contrasena = "AQAAAAIAAYagAAAAECJkUTNTpDEXyGK0S6lDi/pF5uh9pDEYK2H/U3+h/ciWOS/vclz8lBWHa+9Vy2kCAg==", Rol = "Admin", Estado = "aprobado" },
             new Cuenta { IdCuenta = 1001, Correo = "contacto@huellitassv.org", Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==", Rol = "Refugio", Estado = "aprobado" },
             new Cuenta { IdCuenta = 1002, Correo = "adopciones@proteccionsv.org", Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==", Rol = "Refugio", Estado = "aprobado" },
             new Cuenta { IdCuenta = 1003, Correo = "info@alberguesm.org", Contrasena = "AQAAAAIAAYagAAAAEGpRavkRHJ/aY735e72svpCHsB4bya3yjaaoTgFIkSImDf/aT31gaWTTjv2yG1cSQg==", Rol = "Refugio", Estado = "pendiente" },
