@@ -4,6 +4,7 @@
 // Nota: los valores de estado se manejan en minúsculas (pendiente/aprobado/rechazado),
 // igual que los datos semilla de la base de datos.
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,13 +27,18 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Componente de hash de contraseñas (PBKDF2, sin estado, seguro en hilos).</summary>
         private static readonly PasswordHasher<Cuenta> _hasher = new();
 
+        /// <summary>Servicio de emisión de tokens JWT (seguridad).</summary>
+        private readonly Security.JwtTokenService _tokenService;
+
         /// <summary>
-        /// Inicializa el controlador con el contexto de base de datos inyectado.
+        /// Inicializa el controlador con el contexto de base de datos y el servicio de tokens inyectados.
         /// </summary>
         /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
-        public RefugiosController(ApplicationDbContext context)
+        /// <param name="tokenService">Servicio de emisión de tokens JWT.</param>
+        public RefugiosController(ApplicationDbContext context, Security.JwtTokenService tokenService)
         {
             _context = context;
+            _tokenService = tokenService;
         }
 
         // ============================================================
@@ -92,6 +98,7 @@ namespace HuellitasSV.API.Controllers
         /// <returns>Lista de refugios pendientes de aprobación en formato JSON.</returns>
         /// <response code="200">Devuelve la lista de refugios pendientes.</response>
         [HttpGet("pendientes")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<Refugio>>> GetPendientes()
         {
@@ -218,8 +225,11 @@ namespace HuellitasSV.API.Controllers
             return Ok(new
             {
                 mensaje = "Autenticación exitosa.",
+                token = _tokenService.GenerarToken(cuenta.IdCuenta, cuenta.Rol, refugio.NombreOrganizacion, refugio.IdRefugio, null),
                 idRefugio = refugio.IdRefugio,
-                nombreOrganizacion = refugio.NombreOrganizacion
+                idCuenta = cuenta.IdCuenta,
+                nombreOrganizacion = refugio.NombreOrganizacion,
+                rol = cuenta.Rol
             });
         }
 
@@ -238,6 +248,7 @@ namespace HuellitasSV.API.Controllers
         /// <response code="400">Si el estado indicado no es válido.</response>
         /// <response code="404">Si el refugio no existe.</response>
         [HttpPut("{id}/estado")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
