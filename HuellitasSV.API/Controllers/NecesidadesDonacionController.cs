@@ -36,7 +36,7 @@ public class NecesidadesDonacionController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetNecesidades([FromQuery] string? estado = "activa")
     {
-        var query = _context.NecesidadDonacion.AsQueryable();
+        var query = _context.NecesidadesDonacion.AsQueryable();
 
         if (!string.IsNullOrEmpty(estado) && !estado.Equals("todas", StringComparison.OrdinalIgnoreCase))
             query = query.Where(n => n.Estado == estado.ToLower());
@@ -85,7 +85,7 @@ public class NecesidadesDonacionController : ControllerBase
             FechaPublicacion = DateTime.UtcNow
         };
 
-        _context.NecesidadDonacion.Add(necesidad);
+        _context.NecesidadesDonacion.Add(necesidad);
         await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetNecesidades), new { id = necesidad.IdNecesidad }, new
@@ -112,7 +112,7 @@ public class NecesidadesDonacionController : ControllerBase
     [HttpPost("{id}/aportar")]
     public async Task<IActionResult> RegistrarAporte(long id, [FromBody] RegistrarAporteDto dto)
     {
-        var necesidad = await _context.NecesidadDonacion.FindAsync(id);
+        var necesidad = await _context.NecesidadesDonacion.FindAsync(id);
         if (necesidad == null)
             return NotFound(new { error = "Necesidad de donación no encontrada." });
 

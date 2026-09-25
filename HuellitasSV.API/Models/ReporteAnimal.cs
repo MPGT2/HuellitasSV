@@ -27,7 +27,7 @@ public class ReporteAnimal
     /// <summary>
     /// Identificador del usuario que envía el reporte.
     /// </summary>
-    public int IdUsuario { get; set; }
+    public long IdUsuario { get; set; }
 
     /// <summary>
     /// Identificador del refugio que atendió el reporte. Nulo mientras el reporte está pendiente.

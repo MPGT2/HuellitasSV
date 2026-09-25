@@ -1,40 +1,31 @@
-using System.Text.Json.Serialization;
+// [HU-01] Michael Menendez: Entidad Usuario (tabla usuario).
+// Perfil de un usuario registrado; sus credenciales viven en la cuenta asociada (id_cuenta).
 
 namespace HuellitasSV.API.Models;
 
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 /// <summary>
-/// Usuario registrado en el sistema HuellitasSV (adoptantes, representantes de refugios, etc.).
+/// Perfil de un usuario registrado en el sistema HuellitasSV. Las credenciales de acceso
+/// (correo y contraseña) se almacenan en la entidad Cuenta vinculada por IdCuenta.
 /// </summary>
+[Table("usuario")]
 public class Usuario
 {
-    /// <summary>
-    /// Identificador único del usuario.
-    /// </summary>
-    public int IdUsuario { get; set; }
+    /// <summary>Identificador único (identity).</summary>
+    [Key]
+    [Column("id_usuario")]
+    public long IdUsuario { get; set; }
 
-    /// <summary>
-    /// Nombre completo del usuario.
-    /// </summary>
+    /// <summary>Cuenta de acceso asociada al perfil (FK lógica hacia cuenta).</summary>
+    [Required]
+    [Column("id_cuenta")]
+    public long IdCuenta { get; set; }
+
+    /// <summary>Nombre completo del usuario.</summary>
+    [Required]
+    [MaxLength(100)]
+    [Column("nombre")]
     public string Nombre { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Correo electrónico del usuario. Es único en todo el sistema.
-    /// </summary>
-    public string Correo { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Número telefónico de contacto del usuario.
-    /// </summary>
-    public string? Telefono { get; set; }
-
-    /// <summary>
-    /// Contraseña de acceso del usuario. Nunca se incluye en las respuestas de la API.
-    /// </summary>
-    [JsonIgnore]
-    public string Contrasena { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Fecha y hora de registro en UTC. Se asigna automáticamente al crear el usuario.
-    /// </summary>
-    public DateTime FechaRegistro { get; set; }
 }
