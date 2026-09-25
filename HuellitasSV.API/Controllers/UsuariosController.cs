@@ -23,16 +23,21 @@ namespace HuellitasSV.API.Controllers
     {
         private readonly ApplicationDbContext _context;
 
+        /// <summary>Servicio de emisión de tokens JWT (seguridad).</summary>
+        private readonly Security.JwtTokenService _tokenService;
+
         /// <summary>Componente de hash de contraseñas (PBKDF2, sin estado, seguro en hilos).</summary>
         private static readonly PasswordHasher<Cuenta> _hasher = new();
 
         /// <summary>
-        /// Inicializa el controlador con el contexto de base de datos inyectado.
+        /// Inicializa el controlador con el contexto de base de datos y el servicio de tokens inyectados.
         /// </summary>
         /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
-        public UsuariosController(ApplicationDbContext context)
+        /// <param name="tokenService">Servicio de emisión de tokens JWT.</param>
+        public UsuariosController(ApplicationDbContext context, Security.JwtTokenService tokenService)
         {
             _context = context;
+            _tokenService = tokenService;
         }
 
         // ============================================================
@@ -150,8 +155,11 @@ namespace HuellitasSV.API.Controllers
             return Ok(new
             {
                 mensaje = "Autenticación exitosa.",
+                token = _tokenService.GenerarToken(cuenta.IdCuenta, cuenta.Rol, usuario.Nombre, null, usuario.IdUsuario),
                 idUsuario = usuario.IdUsuario,
+                idCuenta = cuenta.IdCuenta,
                 nombre = usuario.Nombre,
+                rol = cuenta.Rol,
                 correo = cuenta.Correo
             });
         }

@@ -78,12 +78,38 @@ Content-Type: application/json
   "estadoSalud": "sano"
 }
 
-### [HU-9] Actualizar mascota
+### [HU-9] Actualizar mascota (🔒 requiere token de refugio: Authorization: Bearer <token>)
 PUT {{Host}}/api/Mascotas/1
 Content-Type: application/json
 
 {
   "estado": "reservada"
+}
+
+### ============================================================
+### Seguridad (JWT)
+### ============================================================
+
+### [SEGURIDAD] Login único con JWT (Admin, Refugio o Usuario)
+POST {{Host}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "correo": "admin@huellitassv.org",
+  "contrasena": "Admin2026!"
+}
+
+### [SEGURIDAD] Ejemplo de petición protegida (copiar el token del login)
+GET {{Host}}/api/Refugios/pendientes
+Authorization: Bearer eyJ...PEGA_AQUI_EL_TOKEN...
+
+### [SEGURIDAD] Login de refugio (también devuelve token)
+POST {{Host}}/api/Refugios/login
+Content-Type: application/json
+
+{
+  "correo": "losamigos.refugio@correo.com",
+  "contrasena": "Refugio2026!"
 }
 
 ### [HU-9] Eliminar mascota

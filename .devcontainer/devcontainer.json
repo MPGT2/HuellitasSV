@@ -1,0 +1,30 @@
+// [SEGURIDAD/DEVOPS] Entorno de desarrollo reproducible para GitHub Codespaces.
+// Contiene el SDK de .NET 10 y levanta SQL Server como contenedor lateral (docker-in-docker),
+// para que cualquier miembro del equipo corra el backend sin instalar nada localmente.
+// El frontend no forma parte de este entorno: solo se trabaja el backend por ahora.
+{
+  "name": "HuellitasSV Backend",
+  "image": "mcr.microsoft.com/dotnet/sdk:10.0",
+  "features": {
+    // Docker dentro del Codespace para levantar SQL Server 2022.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [5299, 1433],
+  "portsAttributes": {
+    "5299": { "label": "API HuellitasSV", "onAutoForward": "openBrowser" },
+    "1433": { "label": "SQL Server", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "bash .devcontainer/setup-sqlserver.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "humao.rest-client"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "ASPNETCORE_ENVIRONMENT": "Development"
+  }
+}

@@ -7,6 +7,7 @@ namespace HuellitasSV.API.Controllers;
 
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HuellitasSV.API.Data;
@@ -15,6 +16,8 @@ using HuellitasSV.API.Models;
 
 /// <summary>
 /// Controlador para que el administrador gestione y cobre espacios publicitarios a las tiendas.
+/// [SEGURIDAD] Crear solicitud es público (lo hace la tienda interesada); aprobar, confirmar pago
+/// y rechazar exigen token JWT de rol "Admin".
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -120,6 +123,7 @@ public class AnunciosController : ControllerBase
     /// <response code="400">El anuncio no está en estado "pendiente".</response>
     /// <response code="404">Anuncio no encontrado.</response>
     [HttpPost("{id}/aprobar")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AprobarAnuncio(long id)
     {
         var anuncio = await _context.Anuncios.FindAsync(id);
@@ -154,6 +158,7 @@ public class AnunciosController : ControllerBase
     /// <response code="400">El anuncio ya está vencido.</response>
     /// <response code="404">Anuncio no encontrado.</response>
     [HttpPost("{id}/confirmar-pago")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ConfirmarPago(long id)
     {
         var anuncio = await _context.Anuncios.FindAsync(id);
@@ -183,6 +188,7 @@ public class AnunciosController : ControllerBase
     /// <response code="400">El anuncio no está en estado "pendiente".</response>
     /// <response code="404">Anuncio no encontrado.</response>
     [HttpPost("{id}/rechazar")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RechazarAnuncio(long id)
     {
         var anuncio = await _context.Anuncios.FindAsync(id);

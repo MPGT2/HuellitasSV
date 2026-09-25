@@ -11,18 +11,20 @@ Desarrollada con **ASP.NET Core (.NET 10)**, controladores tradicionales `[ApiCo
 1. [Descripción](#descripción)
 2. [Tecnologías, frameworks y librerías](#tecnologías-frameworks-y-librerías)
 3. [Arquitectura](#arquitectura)
-4. [Requisitos previos](#requisitos-previos)
-5. [Instalación](#instalación)
-6. [Configuración](#configuración)
-7. [Ejecución](#ejecución)
-8. [Base de datos y migraciones](#base-de-datos-y-migraciones)
-9. [Historias de usuario cubiertas](#historias-de-usuario-cubiertas)
-10. [Endpoints](#endpoints)
-11. [Modelo de datos](#modelo-de-datos)
-12. [Datos semilla](#datos-semilla)
-13. [Estructura del proyecto](#estructura-del-proyecto)
-14. [Convenciones del código](#convenciones-del-código)
-15. [Flujo de trabajo Git](#flujo-de-trabajo-git)
+4. [Seguridad](#seguridad)
+5. [Requisitos previos](#requisitos-previos)
+6. [Instalación](#instalación)
+7. [Configuración](#configuración)
+8. [Ejecución](#ejecución)
+9. [Correr en GitHub Codespaces](#correr-en-github-codespaces)
+10. [Base de datos y migraciones](#base-de-datos-y-migraciones)
+11. [Historias de usuario cubiertas](#historias-de-usuario-cubiertas)
+12. [Endpoints](#endpoints)
+13. [Modelo de datos](#modelo-de-datos)
+14. [Datos semilla](#datos-semilla)
+15. [Estructura del proyecto](#estructura-del-proyecto)
+16. [Convenciones del código](#convenciones-del-código)
+17. [Flujo de trabajo Git](#flujo-de-trabajo-git)
 
 ---
 
@@ -49,7 +51,9 @@ El backend expone los servicios de la plataforma:
 | Herramientas EF | `Microsoft.EntityFrameworkCore.Design` / `.Tools` | 10.0.12 | Scaffolding de migraciones con `dotnet ef` (CLI) |
 | Documentación API | [Swashbuckle.AspNetCore](https://github.com/domaindrivendev/Swashbuckle.AspNetCore) | 10.2.3 | Swagger / Swagger UI en `/swagger` con ejemplos de DTOs |
 | Documentación XML | `GenerateDocumentationFile` + `IncludeXmlComments` | — | Los comentarios XML (`/// <summary>`) alimentan la documentación de Swagger |
-| Seguridad | `PasswordHasher<T>` (ASP.NET Core Identity) | incluido en el framework | Hash PBKDF2 de contraseñas (sin JWT ni sesiones: validación por credenciales por request) |
+| Seguridad | `PasswordHasher<T>` (ASP.NET Core Identity) | incluido en el framework | Hash PBKDF2 de contraseñas |
+| Seguridad | `Microsoft.AspNetCore.Authentication.JwtBearer` | 10.0.12 | Autenticación por token JWT (`[Authorize]`, esquema Bearer) |
+| Tokens | `System.IdentityModel.Tokens.Jwt` / `Microsoft.IdentityModel.Tokens` | 8.19.2 | Emisión y firma de tokens JWT (HMAC-SHA256) con claims de rol y perfil |
 | Serialización | `System.Text.Json` (`JsonStringEnumConverter`) | incluido en el framework | Los enums (`SolicitudEstado`, `ReporteEstado`) se serializan como texto |
 | CORS | Middleware CORS de ASP.NET Core | incluido en el framework | Política `PermitirFrontend` (cualquier origen/método/header) |
 | Validación | Data Annotations (`[Required]`, `[MaxLength]`, `[Range]`, `[EmailAddress]`, …) | incluido en el framework | Validación de entrada automática en los DTOs |
@@ -60,6 +64,7 @@ El backend expone los servicios de la plataforma:
 ### Paquetes NuGet (`HuellitasSV.API.csproj`)
 
 ```xml
+<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
 <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
 <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
 <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12" />
@@ -71,8 +76,8 @@ El backend expone los servicios de la plataforma:
 Arquitectura en capas monolítica, patrón **API REST + ORM Code First**:
 
 ```
-HTTP → Controllers → EF Core (DbSet/LINQ) → SQL Server
-                ↑
+HTTP → UseAuthentication (JWT) → UseAuthorization ([Authorize]) → Controllers → EF Core (DbSet/LINQ) → SQL Server
+                        ↑
         Models + DTOs (validación con Data Annotations)
 ```
 
@@ -80,7 +85,67 @@ HTTP → Controllers → EF Core (DbSet/LINQ) → SQL Server
 - **Models**: entidades POCO mapeadas a tablas con atributos `[Table]`/`[Column]` (nombres snake_case en la BD).
 - **Data**: `ApplicationDbContext` configura claves, índices, precisiones y relaciones (`OnModelCreating`) además de los datos semilla.
 - **DTOs**: objetos de entrada por request, desacoplando el contrato HTTP del modelo de persistencia.
+- **Security**: `JwtTokenService` emite los tokens JWT firmados que usan los endpoints protegidos.
 - **Errores uniformes**: errores de validación con forma `{ "errores": [ ... ] }` (`InvalidModelStateResponseFactory`) y errores de negocio con `{ "error": "..." }`.
+
+## Seguridad
+
+La API implementa autenticación y autorización con **JWT (JSON Web Tokens)**:
+
+1. **Emisión de tokens**: los logins (`POST /api/Auth/login`, `POST /api/Usuarios/login`, `POST /api/Refugios/login`) devuelven un JWT firmado con HMAC-SHA256 (`Security/JwtTokenService`), con vigencia configurable (`Jwt:ExpiryMinutes`, por defecto 8 horas).
+2. **Claims incluidos en el token**:
+   - `sub`: identificador de la cuenta (`id_cuenta`).
+   - Rol: `Admin`, `Refugio` o `Usuario` (usado por `[Authorize(Roles = "...")]`).
+   - `idRefugio`: identificador del refugio asociado (solo rol Refugio).
+   - `idUsuario`: identificador del perfil (solo rol Usuario).
+   - `given_name`: nombre visible.
+3. **Autorización por rol** con `[Authorize(Roles = "...")]`: los endpoints de gestión exigen el rol correspondiente y toman los identificadores del **token**, nunca de parámetros enviados por el cliente (se ignoran `refugioId`/`idRefugio`/`idUsuario` del query o del body).
+4. **Protección adicional**: los usuarios solo consultan/modifican recursos propios (solicitudes de adopción y notificaciones se validan contra el claim del token).
+
+### Matriz de protección de endpoints
+
+| Nivel | Endpoints |
+|-------|-----------|
+| Público (sin token) | Catálogo y filtros de mascotas, registro/login de usuarios y refugios, `POST /api/Auth/login`, listado de anuncios, listado de necesidades de donación, crear solicitud de anuncio |
+| 🔒 Rol `Usuario` | Envío/consulta de solicitudes de adopción (HU-7), crear reportes callejeros (HU-14), aportar a una necesidad de donación |
+| 🔒 Rol `Refugio` | CRUD de mascotas (HU-9), gestión de solicitudes (HU-8), panel de rescate y atención de reportes (HU-15), publicar necesidades de donación |
+| 🔒 Rol `Admin` | Aprobar/rechazar refugios (HU-24), aprobar/confirmar pago/rechazar anuncios (HU-13) |
+| 🔒 Cualquier rol autenticado | Notificaciones propias (consulta y marcar leída) |
+
+### Cómo obtener un token
+
+```http
+POST /api/Auth/login
+Content-Type: application/json
+
+{ "correo": "marialopez@correo.com", "contrasena": "Usuario2026!" }
+```
+
+Respuesta:
+
+```json
+{
+  "mensaje": "Autenticación exitosa.",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "idCuenta": 9006,
+  "rol": "Usuario",
+  "nombre": "María López",
+  "idRefugio": null,
+  "idUsuario": 9001
+}
+```
+
+En Swagger usa el botón **Authorize** (parte superior derecha) y pega el token para probar los endpoints protegidos. En `HuellitasSV.API.http` hay ejemplos de cada login.
+
+### Credenciales semilla por rol
+
+| Rol | Correo | Contraseña |
+|-----|--------|-------------|
+| Admin | `admin@huellitassv.org` | `Admin2026!` |
+| Refugio (aprobado) | `losamigos.refugio@correo.com` | `Refugio2026!` |
+| Usuario (activo) | `marialopez@correo.com` | `Usuario2026!` |
+
+> La clave de firma JWT se define en `appsettings.json` (`Jwt:Key`) como clave de desarrollo. En producción debe sobrescribirse con user secrets o variables de entorno y **nunca** versionarse.
 
 ## Requisitos previos
 
@@ -92,7 +157,7 @@ HTTP → Controllers → EF Core (DbSet/LINQ) → SQL Server
 
 ```bash
 git clone https://github.com/MPGT2/HuellitasSV.git
-cd HuellitasSV/HuellitasSV_Backend/HuellitasSV.API
+cd HuellitasSV/HuellitasSV.API
 dotnet restore
 ```
 
@@ -130,6 +195,39 @@ dotnet run
 
 Alternativamente, abre `HuellitasSV.API.http` en VS Code (extensión REST Client) para ejecutar las peticiones de ejemplo de cada historia de usuario.
 
+## Correr en GitHub Codespaces
+
+El repo incluye un `.devcontainer/` con **.NET 10 SDK** y **SQL Server 2022** como contenedor local, para que cualquier miembro del equipo trabaje sin instalar nada:
+
+1. Desde GitHub: **Code → Codespaces → Create codespace on develop** (o `main`).
+2. Al crearse el Codespace, se ejecuta automáticamente `.devcontainer/setup-sqlserver.sh`, que:
+   - restaura los paquetes NuGet,
+   - levanta SQL Server 2022 en el contenedor `huellitas-sql` (puerto 1433),
+   - deja configurada la cadena de conexión con user secrets.
+3. Arranca la API:
+
+   ```bash
+   cd HuellitasSV.API
+   dotnet run
+   ```
+
+4. La API queda en el puerto **5299**. En la pestaña **Puertos** del Codespace, haz clic en la URL que se abrió en adelante (Swagger se abre solo con el perfil `http`).
+
+Comandos útiles dentro del Codespace:
+
+```bash
+# Ver el estado del contenedor de SQL Server
+docker ps -a
+
+# Reiniciarlo si se detuvo
+docker start huellitas-sql
+
+# La migración Inicial se aplica sola al arrancar (Program.cs); también se puede forzar:
+dotnet ef database update
+```
+
+> Nota: el Codespace es efímero. El contenedor de SQL Server y su BD se pierden al recrear el Codespace; los datos semilla se vuelven a sembrar automáticamente en el arranque.
+
 ## Base de datos y migraciones
 
 Proyecto **EF Core Code First** con una única migración de arranque (`Migrations/20260925063826_Inicial`) que crea el esquema completo (9 tablas) y siembra los datos de prueba (`HasData`). Las contraseñas semilla se almacenan con hash PBKDF2 (Identity v3), nunca en texto plano.
@@ -161,29 +259,37 @@ dotnet ef database drop            # eliminar la BD local
 | HU-14 | Reportar animal en situación de calle | `ReportesAnimalesController` / `ReporteCallejeroController` |
 | HU-15 | Panel de rescate: refugio recibe y atiende reportes | `ReportesRescateController` / `ReporteCallejeroPanelController` |
 | HU-24 | Aprobación y control de refugios (admin) | `RefugiosController` |
-| — | Publicación de necesidades de donación y aportes de la comunidad | `NecesidadesDonacionController` |
-| — | Consulta y marcado de notificaciones | `NotificacionesController` |
+| HU-09 | Publicación de necesidades de donación y aportes de la comunidad (extensión de la gestión del refugio) | `NecesidadesDonacionController` |
+| HU-07/08/14/15 | Consulta y marcado de notificaciones (parte de los flujos de adopciones y reportes) | `NotificacionesController` |
 
 > **Nota de integración:** las HU-07/08 y HU-14/15 cuentan con **controladores paralelos** provenientes de ramas distintas (mismo comportamiento, rutas distintas). Ambos funcionan; la consolidación en un único controlador por HU está pendiente.
 
 ## Endpoints
+
+Los endpoints marcados con 🔒 exigen token JWT (`Authorization: Bearer <token>`) y rol. Ver [Seguridad](#seguridad).
+
+### Autenticación (`/api/Auth`) — seguridad
+
+| Método | Ruta | Descripción | Códigos |
+|--------|------|-------------|---------|
+| POST | `/login` | Login único con JWT para cualquier rol (Admin, Refugio, Usuario); devuelve el token con los claims del perfil | 200, 401, 403 |
 
 ### Usuarios (`/api/Usuarios`) — HU-01
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
 | POST | `/registro` | Registra un usuario cliente: crea cuenta con rol "Usuario", estado "activo" y su perfil | 201, 400, 409 |
-| POST | `/login` | Autenticación por correo y contraseña; rechaza cuentas inactivas o bloqueadas informando el motivo | 200, 401, 403 |
+| POST | `/login` | Autenticación por correo y contraseña; devuelve JWT; rechaza cuentas inactivas o bloqueadas informando el motivo | 200, 401, 403 |
 
 ### Refugios (`/api/Refugios`) — HU-02 / HU-24
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
-| GET | `/pendientes` | Refugios pendientes de aprobación (panel admin) | 200 |
+| GET 🔒 | `/pendientes` | Refugios pendientes de aprobación (solo Admin) | 200 |
 | GET | `/{id}/mascotas` | Mascotas del refugio (panel); filtro opcional `?estado=` | 200, 404 |
 | POST | `/registro` | Registra refugio: valida correo y nombre únicos, crea cuenta con rol "Refugio" y estado "pendiente" | 201, 400, 409 |
-| POST | `/login` | Autenticación por correo y contraseña; solo refugios aprobados | 200, 401, 403 |
-| PUT | `/{id}/estado` | Aprueba o rechaza un refugio; sincroniza el estado de su cuenta | 200, 400, 404 |
+| POST | `/login` | Autenticación por correo y contraseña; solo refugios aprobados; devuelve JWT | 200, 401, 403 |
+| PUT 🔒 | `/{id}/estado` | Aprueba o rechaza un refugio (solo Admin); sincroniza el estado de su cuenta | 200, 400, 404 |
 
 ### Mascotas (`/api/Mascotas`) — HU-04 / HU-05 / HU-06 / HU-09
 
@@ -195,9 +301,9 @@ dotnet ef database drop            # eliminar la BD local
 | GET | `/atributos` | Filtros combinables: `especie`, `tamano`, `edadMinMeses`, `edadMaxMeses`, `estadoSalud` | 200 |
 | GET | `/ubicacion` | Filtros: `departamento`, `municipio` (municipio exige departamento) | 200 |
 | GET | `/refugio/{idRefugio}` | Disponibles de un refugio aprobado | 200 |
-| POST | `/` | Registra una mascota en estado "disponible" | 201, 400 |
-| PUT | `/{id}` | Actualización parcial y transiciones de estado | 200, 400, 404 |
-| DELETE | `/{id}` | Elimina una mascota | 200, 404 |
+| POST 🔒 | `/` | Registra una mascota en estado "disponible" (solo Refugio; refugio del token) | 201, 400 |
+| PUT 🔒 | `/{id}` | Actualización parcial y transiciones de estado (solo el refugio dueño) | 200, 400, 403, 404 |
+| DELETE 🔒 | `/{id}` | Elimina una mascota (solo el refugio dueño) | 200, 403, 404 |
 
 ### Solicitudes de adopción — HU-07 / HU-08
 
@@ -205,16 +311,16 @@ Envío por el usuario y decisión por el refugio. Existen dos conjuntos paralelo
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
-| POST | `/api/SolicitudesAdopcion` | Envía una solicitud de adopción | 201, 400, 404, 409 |
-| GET | `/api/SolicitudesAdopcion/{id}` | Detalle de la solicitud | 200, 404 |
-| GET | `/api/GestionSolicitudes?refugioId=&estado=` | Solicitudes recibidas por el refugio (con filtros) | 200 |
-| GET | `/api/GestionSolicitudes/{id}?refugioId=` | Detalle para el refugio | 200, 404 |
-| PUT | `/api/GestionSolicitudes/{id}/aprobar?refugioId=` | Aprueba la solicitud (notifica al usuario; una mascota solo puede tener una aprobada) | 200, 400, 404, 409 |
-| PUT | `/api/GestionSolicitudes/{id}/rechazar?refugioId=` | Rechaza con comentario (notifica al usuario) | 200, 400, 404 |
-| POST | `/api/Adopcionsolicitudes` | Envío de solicitud (variante) | 201 |
-| GET | `/api/Adopcionsolicitudes/{id}` | Detalle (variante) | 200, 404 |
-| GET | `/api/Adopciongestion?refugioId=` | Listado para decisión (variante) | 200 |
-| PUT | `/api/Adopciongestion/{id}/aprobar` / `/rechazar` | Decisión (variante) | 200 |
+| POST 🔒 | `/api/SolicitudesAdopcion` | Envía una solicitud de adopción (usuario del token) | 201, 400, 404, 409 |
+| GET 🔒 | `/api/SolicitudesAdopcion/{id}` | Detalle de la solicitud (solo si es propia) | 200, 403, 404 |
+| GET 🔒 | `/api/GestionSolicitudes?estado=` | Solicitudes recibidas por el refugio del token (con filtros) | 200 |
+| GET 🔒 | `/api/GestionSolicitudes/{id}` | Detalle para el refugio | 200, 404 |
+| PUT 🔒 | `/api/GestionSolicitudes/{id}/aprobar` | Aprueba la solicitud (notifica al usuario; una mascota solo puede tener una aprobada) | 200, 400, 403, 404, 409 |
+| PUT 🔒 | `/api/GestionSolicitudes/{id}/rechazar` | Rechaza con comentario (notifica al usuario) | 200, 400, 403, 404 |
+| POST 🔒 | `/api/Adopcionsolicitudes` | Envío de solicitud (variante) | 201 |
+| GET 🔒 | `/api/Adopcionsolicitudes/{id}` | Detalle (variante, solo propia) | 200, 403, 404 |
+| GET 🔒 | `/api/Adopciongestion?estado=` | Listado para decisión (variante) | 200 |
+| PUT 🔒 | `/api/Adopciongestion/{id}/aprobar` / `/rechazar` | Decisión (variante) | 200 |
 
 ### Anuncios (`/api/Anuncios`) — HU-13
 
@@ -222,26 +328,26 @@ Envío por el usuario y decisión por el refugio. Existen dos conjuntos paralelo
 |--------|------|-------------|---------|
 | GET | `/?estado=activo` | Anuncios visibles (activos, con pago confirmado y vigentes); `?estado=pendiente|vencido|todas` para administración | 200 |
 | POST | `/` | Registra solicitud de espacio publicitario de una tienda | 201, 400 |
-| POST | `/{id}/aprobar` | El admin aprueba el anuncio y define fechas | 200, 400, 404, 409 |
-| POST | `/{id}/confirmar-pago` | Confirma el pago del espacio | 200, 400, 404, 409 |
-| POST | `/{id}/rechazar` | Rechaza el anuncio | 200, 400, 404, 409 |
+| POST 🔒 | `/{id}/aprobar` | El admin aprueba el anuncio y define fechas (solo Admin) | 200, 400, 404, 409 |
+| POST 🔒 | `/{id}/confirmar-pago` | Confirma el pago del espacio (solo Admin) | 200, 400, 404, 409 |
+| POST 🔒 | `/{id}/rechazar` | Rechaza el anuncio (solo Admin) | 200, 400, 404, 409 |
 
 La expiración a "vencido" se recalcula automáticamente en cada consulta (sin scheduler en segundo plano).
 
-### Necesidades de donación (`/api/NecesidadesDonacion`)
+### Necesidades de donación (`/api/NecesidadesDonacion`) — HU-09
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
 | GET | `/` | Necesidades publicadas, con cobertura acumulada y porcentaje | 200 |
-| POST | `/` | El refugio publica una necesidad urgente de insumos | 201, 400 |
-| POST | `/{id}/aportar` | La comunidad registra un aporte; actualiza `CantidadCubierta` | 200, 400, 404 |
+| POST 🔒 | `/` | El refugio publica una necesidad urgente de insumos (refugio del token) | 201, 400 |
+| POST 🔒 | `/{id}/aportar` | La comunidad registra un aporte (solo Usuario); actualiza `CantidadCubierta` | 200, 400, 404 |
 
-### Notificaciones (`/api/Notificaciones`)
+### Notificaciones (`/api/Notificaciones`) — parte de HU-07/08/14/15
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
-| GET | `/?refugioId=&usuarioId=&leidas=` | Notificaciones del destinatario con filtros | 200 |
-| PUT | `/{id}/leida` | Marca una notificación como leída | 200, 404 |
+| GET 🔒 | `/?leidas=` | Notificaciones del destinatario autenticado (del token); filtro por lectura | 200 |
+| PUT 🔒 | `/{id}/leida` | Marca una notificación como leída (solo si es propia) | 200, 403, 404 |
 
 ### Reportes de animales callejeros — HU-14 / HU-15
 
@@ -249,15 +355,15 @@ Un reporte incluye ubicación (latitud/longitud); al crearlo se notifica automá
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
-| POST | `/api/ReportesAnimales` | Crea un reporte y notifica a los refugios cercanos | 201, 400 |
-| GET | `/api/ReportesAnimales/{id}` | Detalle del reporte | 200, 404 |
-| GET | `/api/ReportesRescate?refugioId=&estado=` | Panel del refugio: reportes cercanos con distancia | 200 |
-| GET | `/api/ReportesRescate/{id}` | Detalle para el refugio | 200, 404 |
-| PUT | `/api/ReportesRescate/{id}/atendido` | El refugio marca el reporte como atendido (quien lo atiende primero) | 200, 400, 404, 409 |
-| POST | `/api/Reportecallejero` | Creación de reporte (variante) | 201 |
-| GET | `/api/Reportecallejero/{id}` | Detalle (variante) | 200 |
-| GET | `/api/Reportecallejeropanel?refugioId=` | Panel del refugio (variante) | 200 |
-| PUT | `/api/Reportecallejeropanel/{id}/atender` | Atención de reporte (variante) | 200 |
+| POST 🔒 | `/api/ReportesAnimales` | Crea un reporte y notifica a los refugios cercanos (usuario del token) | 201, 400 |
+| GET 🔒 | `/api/ReportesAnimales/{id}` | Detalle del reporte | 200, 404 |
+| GET 🔒 | `/api/ReportesRescate?estado=` | Panel del refugio: reportes cercanos con distancia (refugio del token) | 200 |
+| GET 🔒 | `/api/ReportesRescate/{id}` | Detalle para el refugio | 200, 404 |
+| PUT 🔒 | `/api/ReportesRescate/{id}/atendido` | El refugio marca el reporte como atendido (quien lo atiende primero) | 200, 400, 404, 409 |
+| POST 🔒 | `/api/Reportecallejero` | Creación de reporte (variante) | 201 |
+| GET 🔒 | `/api/Reportecallejero/{id}` | Detalle (variante) | 200 |
+| GET 🔒 | `/api/Reportecallejeropanel?estado=` | Panel del refugio (variante) | 200 |
+| PUT 🔒 | `/api/Reportecallejeropanel/{id}/atender` | Atención de reporte (variante) | 200 |
 
 ## Modelo de datos
 
@@ -294,6 +400,7 @@ La migración `Inicial` siembra: **11 cuentas**, **8 refugios**, **16 mascotas**
 | María López (usuario) | `marialopez@correo.com` | Usuario | activo |
 | Carlos Pérez (usuario) | `carlosperez@correo.com` | Usuario | inactivo |
 | Ana Gómez (usuario) | `anagomez@correo.com` | Usuario | bloqueado |
+| Administrador | `admin@huellitassv.org` | Admin | aprobado |
 
 También se siembran 16 mascotas distribuidas en los refugios 1, 2, 3, 9001 y 9002 (disponibles, reservadas, adoptadas, en tratamiento y fallecidas) para cubrir catálogo, filtros y paneles.
 
@@ -302,23 +409,25 @@ También se siembran 16 mascotas distribuidas en los refugios 1, 2, 3, 9001 y 90
 ```
 HuellitasSV.API/
 ├── Controllers/           # Controladores REST (orden jerárquico: GETs → POSTs → PUTs → DELETEs)
+│   ├── AuthController.cs               # Login único con JWT para todos los roles (seguridad)
 │   ├── MascotasController.cs          # Catálogo, filtros y gestión (HU-4/5/6/9)
 │   ├── UsuariosController.cs          # Registro/login de usuarios (HU-1)
 │   ├── RefugiosController.cs          # Registro/login y aprobación de refugios (HU-2/24)
 │   ├── SolicitudesAdopcionController.cs / GestionSolicitudesController.cs   # Adopciones (HU-7/8)
 │   ├── Adopcionsolicitudescontroller.cs / Adopciongestioncontroller.cs       # Adopciones (variantes)
 │   ├── AnunciosController.cs          # Espacios publicitarios (HU-13)
-│   ├── NecesidadesDonacionController.cs  # Donaciones
+│   ├── NecesidadesDonacionController.cs  # Donaciones (HU-9)
 │   ├── NotificacionesController.cs    # Notificaciones
 │   └── Reportes*Controller.cs         # Reportes callejeros y panel de rescate (HU-14/15)
 ├── Data/                  # ApplicationDbContext (EF Core): DbSets, índices, relaciones y seed
 ├── DTOs/                  # Objetos de entrada de cada endpoint (validación con Data Annotations)
 ├── Models/                # Entidades EF Core: Mascota, Refugio, Cuenta, Usuario, SolicitudAdopcion,
 │                          # Notificacion, ReporteAnimal, NecesidadDonacion, Anuncio
-├── Migrations/            # Migración Inicial (esquema completo + datos semilla); se aplica al iniciar
-├── Swagger/               # DtoExamplesSchemaFilter (ejemplos válidos en Swagger)
-├── Program.cs             # Host: DI, CORS, Swagger, errores uniformes y migraciones automáticas
-├── appsettings.json       # Cadena de conexión y configuración
+├── Migrations/            # Migraciones Inicial + AgregaCuentaAdminYSeguridad; se aplican al iniciar
+├── Security/              # JwtTokenService: emisión de tokens JWT firmados (seguridad)
+├── Swagger/               # DtoExamplesSchemaFilter (ejemplos válidos en Swagger) + botón Authorize
+├── Program.cs             # Host: DI, CORS, Swagger, JWT (UseAuthentication/UseAuthorization) y migraciones automáticas
+├── appsettings.json       # Cadena de conexión, sección Jwt (clave/issuer/audience/vigencia) y configuración
 └── HuellitasSV.API.http   # Peticiones de ejemplo por HU (VS Code REST Client)
 ```
 
@@ -331,6 +440,7 @@ HuellitasSV.API/
 - Consultas de solo lectura con `AsNoTracking()` para mejor rendimiento; `FindAsync`/`FirstOrDefaultAsync` para acceso por clave.
 - Claves explícitas con `HasKey` en `OnModelCreating` (el formato `IdXxx` no coincide con la convención de EF Core).
 - Contraseñas almacenadas con hash PBKDF2 (`PasswordHasher` de ASP.NET Core Identity); nunca se devuelven en respuestas (`[JsonIgnore]`).
+- **Seguridad**: todo endpoint de gestión lleva `[Authorize(Roles = "...")]` y toma los identificadores (idRefugio/idUsuario) del token JWT, nunca de parámetros del cliente; los recursos ajenos responden 403.
 - Numeración de entidades: los objetos semilla usan IDs 1–3 (base) y 9001+ (prueba); los registros nuevos continúan la secuencia identity.
 
 ## Flujo de trabajo Git
