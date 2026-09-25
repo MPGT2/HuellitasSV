@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,9 +10,11 @@ namespace HuellitasSV.API.Controllers;
 
 /// <summary>
 /// Controlador REST para que los refugios reciban y visualicen los reportes de animales callejeros (HU-15).
+/// [SEGURIDAD] Solo accesible con token JWT de rol "Refugio"; el refugio se toma del token.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Refugio")]
 public class ReportesRescateController : ControllerBase
 {
     /// <summary>
@@ -43,15 +47,20 @@ public class ReportesRescateController : ControllerBase
     /// <returns>Lista de reportes ordenada de más reciente a más antigua.</returns>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ReporteAnimal>>> GetReportes(
-        [FromQuery] long refugioId,
+        [FromQuery] long? refugioId,
         [FromQuery] string? estado)
     {
-        if (refugioId <= 0)
+        // [SEGURIDAD] El refugio autenticado se toma del token JWT (se ignora el query del cliente).
+        var refugioIdEfectivo = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
+            ? idRefugioToken
+            : 0;
+
+        if (refugioIdEfectivo <= 0)
         {
-            return BadRequest("Debe indicar el identificador del refugio (refugioId).");
+            return Unauthorized(new { error = "El token no incluye el refugio asociado." });
         }
 
-        var refugio = await _context.Refugio.FindAsync(refugioId);
+        var refugio = await _context.Refugio.FindAsync(refugioIdEfectivo);
 
         if (refugio is null)
         {
@@ -121,6 +130,16 @@ public class ReportesRescateController : ControllerBase
         int id,
         [FromBody] ReporteAtencionRequest request)
     {
+        // [SEGURIDAD] El refugio que atiende se toma del token JWT (se ignora el IdRefugio del body).
+        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+            ? idRefugioClaim
+            : 0;
+
+        if (idRefugioToken <= 0)
+        {
+            return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+        }
+
         var reporte = await _context.ReportesAnimales.FindAsync(id);
 
         if (reporte is null)
@@ -133,7 +152,7 @@ public class ReportesRescateController : ControllerBase
             return BadRequest("El reporte ya fue atendido anteriormente.");
         }
 
-        var refugio = await _context.Refugio.FindAsync(request.IdRefugio);
+        var refugio = await _context.Refugio.FindAsync(idRefugioToken);
 
         if (refugio is null)
         {
