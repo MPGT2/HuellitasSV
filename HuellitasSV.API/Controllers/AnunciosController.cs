@@ -98,6 +98,8 @@ public class AnunciosController : ControllerBase
         {
             NombreTienda = dto.NombreTienda,
             ContactoTienda = dto.ContactoTienda,
+            Latitud = dto.Latitud,
+            Longitud = dto.Longitud,
             ImagenUrl = dto.ImagenUrl,
             Descripcion = dto.Descripcion,
             Precio = dto.Precio,
@@ -222,4 +224,87 @@ public class AnunciosController : ControllerBase
 
         await _context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Radio de cobertura en kilómetros para considerar una tienda "cercana" a un refugio.
+    /// </summary>
+    private const double RadioCoberturaKm = 5.0;
+
+    /// <summary>
+    /// [HU-XX] Obtiene los anuncios de tiendas cercanas a un refugio, para mostrarlos como
+    /// sección de publicidad en su catálogo. Criterio de aceptación: si no hay anuncios
+    /// activos dentro de la zona (o el refugio no tiene ubicación registrada), se devuelve
+    /// una lista vacía, nunca un error, para que el frontend simplemente no muestre la sección.
+    /// </summary>
+    /// <param name="idRefugio">Identificador del refugio cuyo catálogo se está navegando.</param>
+    /// <response code="200">Lista de anuncios cercanos (puede ser vacía).</response>
+    /// <response code="404">El refugio indicado no existe.</response>
+    [HttpGet("refugio/{idRefugio}")]
+    public async Task<IActionResult> GetAnunciosPorRefugio(long idRefugio)
+    {
+        // Expira automáticamente lo que ya venció antes de calcular cercanía.
+        await ActualizarVencidosAsync();
+
+        var refugio = await _context.Refugio.FindAsync(idRefugio);
+        if (refugio is null)
+            return NotFound(new { error = "El refugio indicado no existe." });
+
+        // Sin coordenadas del refugio no se puede determinar la zona (criterio de aceptación 2).
+        if (refugio.Latitud is null || refugio.Longitud is null)
+            return Ok(Array.Empty<object>());
+
+        var ahora = DateTime.UtcNow;
+
+        // Solo anuncios realmente visibles (mismo criterio que GetAnuncios) y con ubicación propia.
+        var anunciosVisibles = await _context.Anuncios
+            .Where(a => a.Estado == "activo"
+                && a.PagoConfirmado
+                && a.FechaInicio <= ahora
+                && a.FechaFin >= ahora
+                && a.Latitud != null
+                && a.Longitud != null)
+            .ToListAsync();
+
+        var anunciosCercanos = anunciosVisibles
+            .Where(a => DistanciaKm(
+                refugio.Latitud!.Value, refugio.Longitud!.Value,
+                a.Latitud!.Value, a.Longitud!.Value) <= RadioCoberturaKm)
+            .OrderByDescending(a => a.FechaAprobacion)
+            .Select(a => new
+            {
+                a.IdAnuncio,
+                a.NombreTienda,
+                a.ContactoTienda,
+                a.ImagenUrl,
+                a.Descripcion,
+                a.Latitud,
+                a.Longitud
+            })
+            .ToList();
+
+        // Criterio de aceptación 2: lista vacía (no error) cuando no hay anuncios en la zona.
+        return Ok(anunciosCercanos);
+    }
+
+    /// <summary>
+    /// Calcula la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine
+    /// (mismo cálculo que usan ReportesRescateController y Reportecallejeropanelcontroller).
+    /// </summary>
+    private static double DistanciaKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double radioTierraKm = 6371;
+
+        var deltaLat = GradosARadianes(lat2 - lat1);
+        var deltaLon = GradosARadianes(lon2 - lon1);
+
+        var a =
+            Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
+            Math.Cos(GradosARadianes(lat1)) * Math.Cos(GradosARadianes(lat2)) *
+            Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
+
+        return 2 * radioTierraKm * Math.Asin(Math.Sqrt(a));
+    }
+
+    /// <summary>Convierte grados a radianes.</summary>
+    private static double GradosARadianes(double grados) => grados * Math.PI / 180.0;
 }
