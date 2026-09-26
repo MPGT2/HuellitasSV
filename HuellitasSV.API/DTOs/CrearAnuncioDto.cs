@@ -18,6 +18,14 @@ public class CrearAnuncioDto
     [MaxLength(150, ErrorMessage = "ContactoTienda no puede exceder 150 caracteres.")]
     public string? ContactoTienda { get; set; }
 
+    /// <summary>Latitud de la tienda (opcional, permite calcular cercanía a un refugio).</summary>
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud de la tienda (opcional, permite calcular cercanía a un refugio).</summary>
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public double? Longitud { get; set; }
+
     /// <summary>URL de la imagen/banner del anuncio (opcional).</summary>
     [MaxLength(255, ErrorMessage = "ImagenUrl no puede exceder 255 caracteres.")]
     public string? ImagenUrl { get; set; }
