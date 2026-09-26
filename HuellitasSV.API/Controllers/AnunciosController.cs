@@ -1,5 +1,6 @@
-// [HU-XX] <Tu nombre>: Gestión y cobro de espacios publicitarios a tiendas (administrador).
-// Endpoints: GET listar, POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar.
+// [HU-XX] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
+// Endpoints: GET listar, POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar,
+// GET refugio/{id} (cercanía), GET panel/monetizacion (ingresos y campañas por estado).
 // La expiración a "vencido" se recalcula automáticamente en cada consulta, ya que el
 // proyecto no cuenta con un job en segundo plano (scheduler).
 
@@ -16,8 +17,16 @@ using HuellitasSV.API.Models;
 
 /// <summary>
 /// Controlador para que el administrador gestione y cobre espacios publicitarios a las tiendas.
+<<<<<<< HEAD
 /// [SEGURIDAD] Crear solicitud es público (lo hace la tienda interesada); aprobar, confirmar pago
 /// y rechazar exigen token JWT de rol "Admin".
+=======
+<<<<<<< HEAD
+=======
+/// [SEGURIDAD] Crear solicitud es público (lo hace la tienda interesada); aprobar, confirmar pago,
+/// rechazar y ver el panel de monetización exigen token JWT de rol "Admin".
+>>>>>>> b9eb327 ([HU-15] Oscar Ramirez: Panel de monetización de campañas publicitarias - Se agregó el endpoint GetMonetizacion (ingresos del mes y conteo de campañas por estado) protegido con rol Admin.)
+>>>>>>> 6e45b13 ([HU-15] Oscar Ramirez: Panel de monetización de campañas publicitarias - Se agregó el endpoint GetMonetizacion (ingresos del mes y conteo de campañas por estado) protegido con rol Admin.)
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -307,4 +316,41 @@ public class AnunciosController : ControllerBase
 
     /// <summary>Convierte grados a radianes.</summary>
     private static double GradosARadianes(double grados) => grados * Math.PI / 180.0;
+
+    /// <summary>
+    /// [HU-XX] Panel de monetización para el Administrador Global: ingresos generados en el
+    /// mes actual y cantidad de campañas por estado (activas, vencidas, pendientes).
+    /// Criterio de aceptación: si no hay anuncios registrados, todos los indicadores
+    /// se muestran en 0, sin error.
+    /// </summary>
+    /// <response code="200">Indicadores de monetización del mes actual.</response>
+    [HttpGet("panel/monetizacion")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetMonetizacion()
+    {
+        await ActualizarVencidosAsync();
+
+        var ahora = DateTime.UtcNow;
+
+        var ingresosMes = await _context.Anuncios
+            .Where(a => a.PagoConfirmado
+                && a.FechaAprobacion != null
+                && a.FechaAprobacion.Value.Year == ahora.Year
+                && a.FechaAprobacion.Value.Month == ahora.Month)
+            .SumAsync(a => (decimal?)a.Precio) ?? 0;
+
+        var campanasActivas = await _context.Anuncios.CountAsync(a => a.Estado == "activo");
+        var campanasVencidas = await _context.Anuncios.CountAsync(a => a.Estado == "vencido");
+        var campanasPendientes = await _context.Anuncios.CountAsync(a => a.Estado == "pendiente");
+
+        return Ok(new
+        {
+            anio = ahora.Year,
+            mes = ahora.Month,
+            ingresosMes,
+            campanasActivas,
+            campanasVencidas,
+            campanasPendientes
+        });
+    }
 }
