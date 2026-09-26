@@ -1,4 +1,5 @@
-// [HU-XX] <Tu nombre>: Gestión y cobro de espacios publicitarios a tiendas (administrador).
+// [HU-XX] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
+// Se agregan Latitud/Longitud para la sección de publicidad de tiendas cercanas a un refugio.
 // Ciclo de vida: "pendiente" -> "activo" (aprobado por el admin) -> "vencido" (al llegar fecha_fin).
 // La visibilidad pública exige además pago_confirmado = true y que fecha_inicio ya haya iniciado.
 
@@ -29,6 +30,16 @@ public class Anuncio
     [MaxLength(150)]
     [Column("contacto_tienda")]
     public string? ContactoTienda { get; set; }
+
+    /// <summary>Latitud de la tienda (opcional). Permite calcular cercanía a un refugio (HU-XX).</summary>
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    [Column("latitud")]
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud de la tienda (opcional). Permite calcular cercanía a un refugio (HU-XX).</summary>
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    [Column("longitud")]
+    public double? Longitud { get; set; }
 
     /// <summary>URL de la imagen/banner del anuncio (opcional).</summary>
     [MaxLength(255)]
