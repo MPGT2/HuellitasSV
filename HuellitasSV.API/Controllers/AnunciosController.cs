@@ -17,16 +17,8 @@ using HuellitasSV.API.Models;
 
 /// <summary>
 /// Controlador para que el administrador gestione y cobre espacios publicitarios a las tiendas.
-<<<<<<< HEAD
-/// [SEGURIDAD] Crear solicitud es público (lo hace la tienda interesada); aprobar, confirmar pago
-/// y rechazar exigen token JWT de rol "Admin".
-=======
-<<<<<<< HEAD
-=======
 /// [SEGURIDAD] Crear solicitud es público (lo hace la tienda interesada); aprobar, confirmar pago,
 /// rechazar y ver el panel de monetización exigen token JWT de rol "Admin".
->>>>>>> b9eb327 ([HU-15] Oscar Ramirez: Panel de monetización de campañas publicitarias - Se agregó el endpoint GetMonetizacion (ingresos del mes y conteo de campañas por estado) protegido con rol Admin.)
->>>>>>> 6e45b13 ([HU-15] Oscar Ramirez: Panel de monetización de campañas publicitarias - Se agregó el endpoint GetMonetizacion (ingresos del mes y conteo de campañas por estado) protegido con rol Admin.)
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
