@@ -1,8 +1,3 @@
-// [HU-04 | HU-05 | HU-06 | HU-09] Michael Menendez: Controlador de mascotas unificado en un único archivo.
-// Este archivo consolida y reemplaza los antiguos partial: MascotasController.Gestion.cs,
-// MascotasController.CatalogoEspecie.cs, MascotasController.FiltroAtributos.cs y MascotasController.FiltroUbicacion.cs.
-// Orden jerárquico estricto: 1) Constructor e inyección de dependencias, 2) [HttpGet], 3) [HttpPost], 4) [HttpPut], 5) [HttpDelete].
-
 namespace HuellitasSV.API.Controllers;
 
 using System;
