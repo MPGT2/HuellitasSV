@@ -1,6 +1,6 @@
-// [HU-XX] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
-// Endpoints: GET listar, POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar,
-// GET refugio/{id} (cercanía), GET panel/monetizacion (ingresos y campañas por estado).
+// [HU-13] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
+// Endpoints: GET listar, GET refugio/{id}, GET panel/monetizacion,
+// POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar.
 // La expiración a "vencido" se recalcula automáticamente en cada consulta, ya que el
 // proyecto no cuenta con un job en segundo plano (scheduler).
 
@@ -27,12 +27,21 @@ public class AnunciosController : ControllerBase
     private readonly ApplicationDbContext _context;
 
     /// <summary>
+    /// Radio de cobertura en kilómetros para considerar una tienda "cercana" a un refugio.
+    /// </summary>
+    private const double RadioCoberturaKm = 5.0;
+
+    /// <summary>
     /// Inicializa el controlador con el contexto de base de datos.
     /// </summary>
     public AnunciosController(ApplicationDbContext context)
     {
         _context = context;
     }
+
+    // -------------------------------------------------------------------------
+    // 1) MÉTODOS [HttpGet]
+    // -------------------------------------------------------------------------
 
     /// <summary>
     /// Lista los anuncios. Por defecto solo devuelve los visibles para la comunidad:
@@ -84,6 +93,97 @@ public class AnunciosController : ControllerBase
     }
 
     /// <summary>
+    /// Obtiene los anuncios de tiendas cercanas a un refugio, para mostrarlos como
+    /// sección de publicidad en su catálogo. Si no hay anuncios activos en la zona
+    /// (o el refugio no tiene ubicación), se devuelve una lista vacía.
+    /// </summary>
+    /// <param name="idRefugio">Identificador del refugio cuyo catálogo se está navegando.</param>
+    /// <response code="200">Lista de anuncios cercanos (puede ser vacía).</response>
+    /// <response code="404">El refugio indicado no existe.</response>
+    [HttpGet("refugio/{idRefugio}")]
+    public async Task<IActionResult> GetAnunciosPorRefugio(long idRefugio)
+    {
+        await ActualizarVencidosAsync();
+
+        var refugio = await _context.Refugio.FindAsync(idRefugio);
+        if (refugio is null)
+            return NotFound(new { error = "El refugio indicado no existe." });
+
+        if (refugio.Latitud is null || refugio.Longitud is null)
+            return Ok(Array.Empty<object>());
+
+        var ahora = DateTime.UtcNow;
+
+        var anunciosVisibles = await _context.Anuncios
+            .Where(a => a.Estado == "activo"
+                && a.PagoConfirmado
+                && a.FechaInicio <= ahora
+                && a.FechaFin >= ahora
+                && a.Latitud != null
+                && a.Longitud != null)
+            .ToListAsync();
+
+        var anunciosCercanos = anunciosVisibles
+            .Where(a => DistanciaKm(
+                refugio.Latitud!.Value, refugio.Longitud!.Value,
+                a.Latitud!.Value, a.Longitud!.Value) <= RadioCoberturaKm)
+            .OrderByDescending(a => a.FechaAprobacion)
+            .Select(a => new
+            {
+                a.IdAnuncio,
+                a.NombreTienda,
+                a.ContactoTienda,
+                a.ImagenUrl,
+                a.Descripcion,
+                a.Latitud,
+                a.Longitud
+            })
+            .ToList();
+
+        return Ok(anunciosCercanos);
+    }
+
+    /// <summary>
+    /// Panel de monetización para el Administrador Global: ingresos del mes actual
+    /// y cantidad de campañas por estado (activas, vencidas, pendientes).
+    /// Sin anuncios registrados, todos los indicadores se muestran en 0.
+    /// </summary>
+    /// <response code="200">Indicadores de monetización del mes actual.</response>
+    [HttpGet("panel/monetizacion")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetMonetizacion()
+    {
+        await ActualizarVencidosAsync();
+
+        var ahora = DateTime.UtcNow;
+
+        var ingresosMes = await _context.Anuncios
+            .Where(a => a.PagoConfirmado
+                && a.FechaAprobacion != null
+                && a.FechaAprobacion.Value.Year == ahora.Year
+                && a.FechaAprobacion.Value.Month == ahora.Month)
+            .SumAsync(a => (decimal?)a.Precio) ?? 0;
+
+        var campanasActivas = await _context.Anuncios.CountAsync(a => a.Estado == "activo");
+        var campanasVencidas = await _context.Anuncios.CountAsync(a => a.Estado == "vencido");
+        var campanasPendientes = await _context.Anuncios.CountAsync(a => a.Estado == "pendiente");
+
+        return Ok(new
+        {
+            anio = ahora.Year,
+            mes = ahora.Month,
+            ingresosMes,
+            campanasActivas,
+            campanasVencidas,
+            campanasPendientes
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // 2) MÉTODOS [HttpPost]
+    // -------------------------------------------------------------------------
+
+    /// <summary>
     /// Registra la solicitud de una tienda para publicar un anuncio. Queda en
     /// estado "pendiente" hasta que el administrador la revise.
     /// </summary>
@@ -118,9 +218,8 @@ public class AnunciosController : ControllerBase
     }
 
     /// <summary>
-    /// Aprueba un anuncio pendiente. Criterio de aceptación: al aprobarlo, el sistema
-    /// lo activa; queda realmente visible a los usuarios solo cuando además el pago
-    /// esté confirmado y su fecha de inicio haya llegado.
+    /// Aprueba un anuncio pendiente. Queda visible a los usuarios solo cuando además
+    /// el pago esté confirmado y su fecha de inicio haya llegado.
     /// </summary>
     /// <response code="200">Anuncio aprobado.</response>
     /// <response code="400">El anuncio no está en estado "pendiente".</response>
@@ -153,9 +252,8 @@ public class AnunciosController : ControllerBase
     }
 
     /// <summary>
-    /// Confirma el pago de un anuncio. Criterio de aceptación: si el pago no está
-    /// confirmado al llegar la fecha de activación, el anuncio no se publica hasta
-    /// que se registre el pago mediante este endpoint.
+    /// Confirma el pago de un anuncio. Si el pago no está confirmado al llegar la
+    /// fecha de activación, el anuncio no se publica hasta registrar el pago aquí.
     /// </summary>
     /// <response code="200">Pago confirmado.</response>
     /// <response code="400">El anuncio ya está vencido.</response>
@@ -184,8 +282,7 @@ public class AnunciosController : ControllerBase
     }
 
     /// <summary>
-    /// Rechaza un anuncio pendiente. No forma parte de los criterios de aceptación
-    /// originales, pero completa el flujo de administración (aprobar/rechazar).
+    /// Rechaza un anuncio pendiente. Completa el flujo de administración (aprobar/rechazar).
     /// </summary>
     /// <response code="200">Anuncio rechazado.</response>
     /// <response code="400">El anuncio no está en estado "pendiente".</response>
@@ -207,9 +304,12 @@ public class AnunciosController : ControllerBase
         return Ok(new { mensaje = "Anuncio rechazado.", anuncio.IdAnuncio, anuncio.Estado });
     }
 
+    // -------------------------------------------------------------------------
+    // Helpers privados
+    // -------------------------------------------------------------------------
+
     /// <summary>
-    /// Criterio de aceptación: cuando un anuncio vence (llega su fecha de fin),
-    /// el sistema lo pasa automáticamente a estado "vencido" y deja de mostrarlo.
+    /// Cuando un anuncio vence (llega su fecha de fin), lo pasa a estado "vencido".
     /// </summary>
     private async Task ActualizarVencidosAsync()
     {
@@ -227,69 +327,7 @@ public class AnunciosController : ControllerBase
     }
 
     /// <summary>
-    /// Radio de cobertura en kilómetros para considerar una tienda "cercana" a un refugio.
-    /// </summary>
-    private const double RadioCoberturaKm = 5.0;
-
-    /// <summary>
-    /// [HU-XX] Obtiene los anuncios de tiendas cercanas a un refugio, para mostrarlos como
-    /// sección de publicidad en su catálogo. Criterio de aceptación: si no hay anuncios
-    /// activos dentro de la zona (o el refugio no tiene ubicación registrada), se devuelve
-    /// una lista vacía, nunca un error, para que el frontend simplemente no muestre la sección.
-    /// </summary>
-    /// <param name="idRefugio">Identificador del refugio cuyo catálogo se está navegando.</param>
-    /// <response code="200">Lista de anuncios cercanos (puede ser vacía).</response>
-    /// <response code="404">El refugio indicado no existe.</response>
-    [HttpGet("refugio/{idRefugio}")]
-    public async Task<IActionResult> GetAnunciosPorRefugio(long idRefugio)
-    {
-        // Expira automáticamente lo que ya venció antes de calcular cercanía.
-        await ActualizarVencidosAsync();
-
-        var refugio = await _context.Refugio.FindAsync(idRefugio);
-        if (refugio is null)
-            return NotFound(new { error = "El refugio indicado no existe." });
-
-        // Sin coordenadas del refugio no se puede determinar la zona (criterio de aceptación 2).
-        if (refugio.Latitud is null || refugio.Longitud is null)
-            return Ok(Array.Empty<object>());
-
-        var ahora = DateTime.UtcNow;
-
-        // Solo anuncios realmente visibles (mismo criterio que GetAnuncios) y con ubicación propia.
-        var anunciosVisibles = await _context.Anuncios
-            .Where(a => a.Estado == "activo"
-                && a.PagoConfirmado
-                && a.FechaInicio <= ahora
-                && a.FechaFin >= ahora
-                && a.Latitud != null
-                && a.Longitud != null)
-            .ToListAsync();
-
-        var anunciosCercanos = anunciosVisibles
-            .Where(a => DistanciaKm(
-                refugio.Latitud!.Value, refugio.Longitud!.Value,
-                a.Latitud!.Value, a.Longitud!.Value) <= RadioCoberturaKm)
-            .OrderByDescending(a => a.FechaAprobacion)
-            .Select(a => new
-            {
-                a.IdAnuncio,
-                a.NombreTienda,
-                a.ContactoTienda,
-                a.ImagenUrl,
-                a.Descripcion,
-                a.Latitud,
-                a.Longitud
-            })
-            .ToList();
-
-        // Criterio de aceptación 2: lista vacía (no error) cuando no hay anuncios en la zona.
-        return Ok(anunciosCercanos);
-    }
-
-    /// <summary>
-    /// Calcula la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine
-    /// (mismo cálculo que usan ReportesRescateController y Reportecallejeropanelcontroller).
+    /// Calcula la distancia en kilómetros entre dos puntos geográficos (Haversine).
     /// </summary>
     private static double DistanciaKm(double lat1, double lon1, double lat2, double lon2)
     {
@@ -308,41 +346,4 @@ public class AnunciosController : ControllerBase
 
     /// <summary>Convierte grados a radianes.</summary>
     private static double GradosARadianes(double grados) => grados * Math.PI / 180.0;
-
-    /// <summary>
-    /// [HU-XX] Panel de monetización para el Administrador Global: ingresos generados en el
-    /// mes actual y cantidad de campañas por estado (activas, vencidas, pendientes).
-    /// Criterio de aceptación: si no hay anuncios registrados, todos los indicadores
-    /// se muestran en 0, sin error.
-    /// </summary>
-    /// <response code="200">Indicadores de monetización del mes actual.</response>
-    [HttpGet("panel/monetizacion")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetMonetizacion()
-    {
-        await ActualizarVencidosAsync();
-
-        var ahora = DateTime.UtcNow;
-
-        var ingresosMes = await _context.Anuncios
-            .Where(a => a.PagoConfirmado
-                && a.FechaAprobacion != null
-                && a.FechaAprobacion.Value.Year == ahora.Year
-                && a.FechaAprobacion.Value.Month == ahora.Month)
-            .SumAsync(a => (decimal?)a.Precio) ?? 0;
-
-        var campanasActivas = await _context.Anuncios.CountAsync(a => a.Estado == "activo");
-        var campanasVencidas = await _context.Anuncios.CountAsync(a => a.Estado == "vencido");
-        var campanasPendientes = await _context.Anuncios.CountAsync(a => a.Estado == "pendiente");
-
-        return Ok(new
-        {
-            anio = ahora.Year,
-            mes = ahora.Month,
-            ingresosMes,
-            campanasActivas,
-            campanasVencidas,
-            campanasPendientes
-        });
-    }
 }

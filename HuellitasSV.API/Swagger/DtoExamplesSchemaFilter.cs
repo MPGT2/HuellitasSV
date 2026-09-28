@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Filtro de ejemplos para Swagger.
-// Evita respuestas 400 en "Try it out" al proponer cuerpos de solicitud válidos para cada DTO.
-
 namespace HuellitasSV.API.Swagger;
 
 using HuellitasSV.API.DTOs;

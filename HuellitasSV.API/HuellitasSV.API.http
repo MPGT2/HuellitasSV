@@ -1,12 +1,27 @@
 @Host = http://localhost:5299
 
 ### ============================================================
-### Estructura base y catálogo — Michael Menendez (HU-4, HU-5, HU-6, HU-9)
+### Configuración: la API usa la BD de MonsterASP (ver README).
+### Resultados esperados en formato JSON (rúbrica / evidencia).
 ### ============================================================
 
 ### [HU-4] Listar mascotas disponibles por especie
 GET {{Host}}/api/Mascotas/especie/perro
 Accept: application/json
+
+### Respuesta esperada (200):
+# [
+#   {
+#     "idMascota": 1,
+#     "nombre": "Rocky",
+#     "especie": "perro",
+#     "tamano": "mediano",
+#     "edadMeses": 24,
+#     "estadoSalud": "sano",
+#     "estado": "disponible",
+#     "idRefugio": 1
+#   }
+# ]
 
 ### [HU-5] Filtrar mascotas por atributos
 GET {{Host}}/api/Mascotas/atributos?tamano=mediano&edadMaxMeses=36&estadoSalud=sano
@@ -16,12 +31,13 @@ Accept: application/json
 GET {{Host}}/api/Mascotas/ubicacion?departamento=San%20Salvador
 Accept: application/json
 
-### [Panel] Mascotas de un refugio (GET /api/Refugios/{id}/mascotas)
+### [Panel] Mascotas de un refugio
 GET {{Host}}/api/Refugios/1/mascotas
 Accept: application/json
 
-### [HU-24] Refugios pendientes de aprobación (panel admin)
+### [HU-24] Refugios pendientes de aprobación (🔒 Admin)
 GET {{Host}}/api/Refugios/pendientes
+Authorization: Bearer {{tokenAdmin}}
 Accept: application/json
 
 ### [HU-02] Registrar refugio (queda en estado "pendiente")
@@ -42,21 +58,32 @@ POST {{Host}}/api/Refugios/login
 Content-Type: application/json
 
 {
-  "correo": "contacto@huellitassv.org",
+  "correo": "losamigos.refugio@correo.com",
   "contrasena": "Refugio2026!"
 }
 
-### [HU-01] Registrar usuario cliente (acceso inmediato, sin aprobación)
+### Respuesta esperada (200):
+# {
+#   "mensaje": "Autenticación exitosa.",
+#   "token": "eyJhbGciOiJIUzI1NiIs...",
+#   "idCuenta": 9004,
+#   "rol": "Refugio",
+#   "nombre": "Refugio Los Amigos",
+#   "idRefugio": 9001,
+#   "idUsuario": null
+# }
+
+### [HU-01] Registrar usuario cliente
 POST {{Host}}/api/Usuarios/registro
 Content-Type: application/json
 
 {
   "nombre": "María López",
-  "correo": "maria.lopez@correo.com",
+  "correo": "maria.lopez.nueva@correo.com",
   "contrasena": "Usuario2026!"
 }
 
-### [HU-01] Inicio de sesión de usuario (activo | inactivo | bloqueado)
+### [HU-01] Inicio de sesión de usuario
 POST {{Host}}/api/Usuarios/login
 Content-Type: application/json
 
@@ -64,31 +91,6 @@ Content-Type: application/json
   "correo": "marialopez@correo.com",
   "contrasena": "Usuario2026!"
 }
-
-### [HU-9] Registrar mascota
-POST {{Host}}/api/Mascotas
-Content-Type: application/json
-
-{
-  "idRefugio": 1,
-  "nombre": "Firulais",
-  "especie": "perro",
-  "tamano": "mediano",
-  "edadMeses": 24,
-  "estadoSalud": "sano"
-}
-
-### [HU-9] Actualizar mascota (🔒 requiere token de refugio: Authorization: Bearer <token>)
-PUT {{Host}}/api/Mascotas/1
-Content-Type: application/json
-
-{
-  "estado": "reservada"
-}
-
-### ============================================================
-### Seguridad (JWT)
-### ============================================================
 
 ### [SEGURIDAD] Login único con JWT (Admin, Refugio o Usuario)
 POST {{Host}}/api/Auth/login
@@ -99,24 +101,84 @@ Content-Type: application/json
   "contrasena": "Admin2026!"
 }
 
-### [SEGURIDAD] Ejemplo de petición protegida (copiar el token del login)
+### Respuesta esperada (200):
+# {
+#   "mensaje": "Autenticación exitosa.",
+#   "token": "eyJhbGciOiJIUzI1NiIs...",
+#   "idCuenta": 9011,
+#   "rol": "Admin",
+#   "nombre": "Administrador",
+#   "idRefugio": null,
+#   "idUsuario": null
+# }
+
+### [SEGURIDAD] Ejemplo de petición protegida (pegar token del login)
 GET {{Host}}/api/Refugios/pendientes
 Authorization: Bearer eyJ...PEGA_AQUI_EL_TOKEN...
+Accept: application/json
 
-### [SEGURIDAD] Login de refugio (también devuelve token)
-POST {{Host}}/api/Refugios/login
+### [HU-9] Registrar mascota (🔒 Refugio)
+POST {{Host}}/api/Mascotas
+Authorization: Bearer {{tokenRefugio}}
 Content-Type: application/json
 
 {
-  "correo": "losamigos.refugio@correo.com",
-  "contrasena": "Refugio2026!"
+  "idRefugio": 9001,
+  "nombre": "Firulais",
+  "especie": "perro",
+  "tamano": "mediano",
+  "edadMeses": 24,
+  "estadoSalud": "sano"
 }
 
-### [HU-9] Eliminar mascota
+### [HU-9] Actualizar mascota (🔒 Refugio)
+PUT {{Host}}/api/Mascotas/1
+Authorization: Bearer {{tokenRefugio}}
+Content-Type: application/json
+
+{
+  "estado": "reservada"
+}
+
+### [HU-7] Enviar solicitud de adopción (🔒 Usuario)
+POST {{Host}}/api/SolicitudesAdopcion
+Authorization: Bearer {{tokenUsuario}}
+Content-Type: application/json
+
+{
+  "idMascota": 1,
+  "nombreContacto": "María López",
+  "telefonoContacto": "7777-0000",
+  "correoContacto": "marialopez@correo.com",
+  "motivo": "Busco compañero para mi hogar."
+}
+
+### [HU-8] Listar solicitudes del refugio (🔒 Refugio)
+GET {{Host}}/api/GestionSolicitudes?estado=Pendiente
+Authorization: Bearer {{tokenRefugio}}
+Accept: application/json
+
+### [HU-13] Listar anuncios activos
+GET {{Host}}/api/Anuncios?estado=activo
+Accept: application/json
+
+### [HU-14] Crear reporte callejero (🔒 Usuario)
+POST {{Host}}/api/ReportesAnimales
+Authorization: Bearer {{tokenUsuario}}
+Content-Type: application/json
+
+{
+  "descripcion": "Perro pequeño en la acera, sin collar.",
+  "fotoUrl": "https://ejemplo.com/foto.jpg",
+  "latitud": 13.6929,
+  "longitud": -89.2182
+}
+
+### [HU-15] Panel de rescate (🔒 Refugio)
+GET {{Host}}/api/ReportesRescate?estado=Pendiente
+Authorization: Bearer {{tokenRefugio}}
+Accept: application/json
+
+### [HU-9] Eliminar mascota (🔒 Refugio)
 DELETE {{Host}}/api/Mascotas/1
-
-### Subir imagen a una mascota
-POST {{Host}}/api/Mascotas/1/imagen
-Content-Type: image/png
-
-<ruta\del\archivo.png>
+Authorization: Bearer {{tokenRefugio}}

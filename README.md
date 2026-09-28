@@ -46,7 +46,7 @@ El backend expone los servicios de la plataforma:
 |-----------|------------|---------|--------------------|
 | Runtime / SDK | [.NET](https://dotnet.microsoft.com) | 10.0 (`net10.0`) | Plataforma base del proyecto |
 | Framework web | [ASP.NET Core](https://learn.microsoft.com/aspnet/core) (SDK Web) | 10.0 | API REST con controladores `[ApiController]` |
-| ORM | [Entity Framework Core](https://learn.microsoft.com/ef/core) | 10.0.12 | Acceso a datos, migraciones Code First y datos semilla (`HasData`) |
+| ORM | [Entity Framework Core](https://learn.microsoft.com/ef/core) | 10.0.12 | Acceso a datos; historial Code First en `Migrations/` (no se aplica al arrancar en cloud) |
 | Proveedor BD | `Microsoft.EntityFrameworkCore.SqlServer` | 10.0.12 | Conexión a SQL Server (`Microsoft.Data.SqlClient`) |
 | Herramientas EF | `Microsoft.EntityFrameworkCore.Design` / `.Tools` | 10.0.12 | Scaffolding de migraciones con `dotnet ef` (CLI) |
 | Documentación API | [Swashbuckle.AspNetCore](https://github.com/domaindrivendev/Swashbuckle.AspNetCore) | 10.2.3 | Swagger / Swagger UI en `/swagger` con ejemplos de DTOs |
@@ -57,8 +57,8 @@ El backend expone los servicios de la plataforma:
 | Serialización | `System.Text.Json` (`JsonStringEnumConverter`) | incluido en el framework | Los enums (`SolicitudEstado`, `ReporteEstado`) se serializan como texto |
 | CORS | Middleware CORS de ASP.NET Core | incluido en el framework | Política `PermitirFrontend` (cualquier origen/método/header) |
 | Validación | Data Annotations (`[Required]`, `[MaxLength]`, `[Range]`, `[EmailAddress]`, …) | incluido en el framework | Validación de entrada automática en los DTOs |
-| Configuración | `IConfiguration` + User Secrets | incluido en el framework | Cadena de conexión en `appsettings.json` y/o secretos locales de desarrollo |
-| BD | [SQL Server](https://www.microsoft.com/sql-server) | 2019+ / Express | Persistencia (local, Docker o remoto) |
+| Configuración | `IConfiguration` + User Secrets / `appsettings.Local.json` | incluido en el framework | Cadena MonsterASP fuera del repo |
+| BD | [SQL Server](https://www.microsoft.com/sql-server) en **MonsterASP** | — | Persistencia en la nube (esquema y datos ya desplegados) |
 | Cliente REST | `.http` (VS Code REST Client) / Swagger UI | — | Pruebas manuales de los endpoints |
 
 ### Paquetes NuGet (`HuellitasSV.API.csproj`)
@@ -76,7 +76,7 @@ El backend expone los servicios de la plataforma:
 Arquitectura en capas monolítica, patrón **API REST + ORM Code First**:
 
 ```
-HTTP → UseAuthentication (JWT) → UseAuthorization ([Authorize]) → Controllers → EF Core (DbSet/LINQ) → SQL Server
+HTTP → UseAuthentication (JWT) → UseAuthorization ([Authorize]) → Controllers → EF Core (DbSet/LINQ) → SQL Server (MonsterASP)
                         ↑
         Models + DTOs (validación con Data Annotations)
 ```
@@ -150,8 +150,8 @@ En Swagger usa el botón **Authorize** (parte superior derecha) y pega el token 
 ## Requisitos previos
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- SQL Server (local, Docker o remoto)
-- (Opcional, para mantenimiento de migraciones) `dotnet tool install --global dotnet-ef`
+- Acceso a la base de datos **SQL Server en MonsterASP** (cadena de conexión del panel del hosting)
+- (Opcional) `dotnet tool install --global dotnet-ef` solo si vas a crear migraciones nuevas de esquema
 
 ## Instalación
 
@@ -163,24 +163,39 @@ dotnet restore
 
 ## Configuración
 
-La cadena de conexión se define en `HuellitasSV.API/appsettings.json`:
+La API **no** incluye la cadena de conexión en el repositorio. Cada miembro del equipo debe apuntar a la BD de **MonsterASP**.
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=HuellitasSV;Trusted_Connection=True;TrustServerCertificate=True;"
-  }
-}
-```
-
-Ajusta `Server`, `Database`, `User Id` y `Password` según tu entorno.
-
-**Opción recomendada para desarrollo local** (sin tocar archivos versionados): user secrets.
+### Opción A — User secrets (recomendada)
 
 ```bash
+cd HuellitasSV.API
 dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=HuellitasSV;Trusted_Connection=True;TrustServerCertificate=True;"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=TU_SERVIDOR.monsterasp.net;Database=TU_BD;User Id=TU_USUARIO;Password=TU_PASSWORD;TrustServerCertificate=True;Encrypt=True;"
 ```
+
+### Opción B — Archivo local (no se versiona)
+
+```bash
+cd HuellitasSV.API
+cp appsettings.Local.json.example appsettings.Local.json
+# Edita appsettings.Local.json con la cadena real de MonsterASP
+```
+
+`appsettings.Local.json` está en `.gitignore`.
+
+### Opción C — Variable de entorno
+
+```bash
+# PowerShell
+$env:ConnectionStrings__DefaultConnection = "Server=....monsterasp.net;Database=...;User Id=...;Password=...;TrustServerCertificate=True;Encrypt=True;"
+
+# bash
+export ConnectionStrings__DefaultConnection='Server=....monsterasp.net;...'
+```
+
+En `appsettings.json` la cadena va vacía a propósito. Si falta, la API **no arranca** y muestra un mensaje claro.
+
+> La clave JWT de desarrollo está en `appsettings.json`. En producción sobrescríbela con user secrets (`Jwt:Key`) o `Jwt__Key`. **Nunca** subas passwords ni claves reales al repo.
 
 ## Ejecución
 
@@ -189,60 +204,92 @@ cd HuellitasSV.API
 dotnet run
 ```
 
-- URL base: `http://localhost:5299` (definida en `Properties/launchSettings.json`; el perfil `https` expone además `https://localhost:7040`)
-- Documentación interactiva (Swagger): `http://localhost:5299/swagger`
-- Al iniciar, la API aplica automáticamente las migraciones pendientes (crea la BD, tablas, índices y datos semilla) — ver `Program.cs`.
+- URL base: `http://localhost:5299` (`Properties/launchSettings.json`; el perfil `https` también expone `https://localhost:7040`)
+- Swagger (solo Development): `http://localhost:5299/swagger`
+- Al iniciar, la API **verifica la conexión** a MonsterASP. **No aplica migraciones** por defecto (`Database:ApplyMigrationsOnStartup: false`): el esquema y los datos ya están en la nube.
 
-Alternativamente, abre `HuellitasSV.API.http` en VS Code (extensión REST Client) para ejecutar las peticiones de ejemplo de cada historia de usuario.
+Alternativamente, abre `HuellitasSV.API.http` (extensión REST Client) para probar endpoints.
+
+### Ejemplo de resultado JSON (login)
+
+```http
+POST /api/Auth/login
+Content-Type: application/json
+
+{ "correo": "marialopez@correo.com", "contrasena": "Usuario2026!" }
+```
+
+```json
+{
+  "mensaje": "Autenticación exitosa.",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "idCuenta": 9006,
+  "rol": "Usuario",
+  "nombre": "María López",
+  "idRefugio": null,
+  "idUsuario": 9001
+}
+```
+
+### Ejemplo de resultado JSON (catálogo)
+
+```http
+GET /api/Mascotas/especie/perro
+Accept: application/json
+```
+
+```json
+[
+  {
+    "idMascota": 1,
+    "nombre": "Rocky",
+    "especie": "perro",
+    "tamano": "mediano",
+    "edadMeses": 24,
+    "estadoSalud": "sano",
+    "estado": "disponible",
+    "idRefugio": 1
+  }
+]
+```
 
 ## Correr en GitHub Codespaces
 
-El repo incluye un `.devcontainer/` con **.NET 10 SDK** y **SQL Server 2022** como contenedor local, para que cualquier miembro del equipo trabaje sin instalar nada:
+El `.devcontainer/` incluye **.NET 10 SDK**. La BD es la de **MonsterASP** (no se levanta SQL local).
 
-1. Desde GitHub: **Code → Codespaces → Create codespace on develop** (o `main`).
-2. Al crearse el Codespace, se ejecuta automáticamente `.devcontainer/setup-sqlserver.sh`, que:
-   - restaura los paquetes NuGet,
-   - levanta SQL Server 2022 en el contenedor `huellitas-sql` (puerto 1433),
-   - deja configurada la cadena de conexión con user secrets.
-3. Arranca la API:
+1. **Code → Codespaces → Create codespace** en `main` o `develop`.
+2. Define el secreto/variable `MONSTERASP_CONNECTION_STRING` en el Codespace (o configúrala a mano con user secrets).
+3. Arranca:
 
    ```bash
    cd HuellitasSV.API
    dotnet run
    ```
 
-4. La API queda en el puerto **5299**. En la pestaña **Puertos** del Codespace, haz clic en la URL que se abrió en adelante (Swagger se abre solo con el perfil `http`).
-
-Comandos útiles dentro del Codespace:
-
-```bash
-# Ver el estado del contenedor de SQL Server
-docker ps -a
-
-# Reiniciarlo si se detuvo
-docker start huellitas-sql
-
-# La migración Inicial se aplica sola al arrancar (Program.cs); también se puede forzar:
-dotnet ef database update
-```
-
-> Nota: el Codespace es efímero. El contenedor de SQL Server y su BD se pierden al recrear el Codespace; los datos semilla se vuelven a sembrar automáticamente en el arranque.
+4. Puerto **5299** → Swagger en la pestaña Puertos.
 
 ## Base de datos y migraciones
 
-Proyecto **EF Core Code First** con una única migración de arranque (`Migrations/20260925063826_Inicial`) que crea el esquema completo (9 tablas) y siembra los datos de prueba (`HasData`). Las contraseñas semilla se almacenan con hash PBKDF2 (Identity v3), nunca en texto plano.
+Proyecto **EF Core Code First**. El esquema y los datos de prueba viven en **MonsterASP**. Las carpetas `Migrations/` se conservan como historial del modelo EF; **no hace falta** ejecutar `dotnet ef database update` ni migrar al arrancar para trabajar en el día a día.
 
-Comandos útiles:
+| Escenario | Qué hacer |
+|-----------|-----------|
+| Equipo / entrega (BD cloud) | Solo configurar la cadena. `ApplyMigrationsOnStartup = false` |
+| Cambió el modelo y hay que alterar la BD cloud | Crear migración con `dotnet ef migrations add ...` y aplicarla de forma controlada (manual o con flag) |
+| Laboratorio local excepcional | `Database:ApplyMigrationsOnStartup = true` en secrets/local |
 
 ```bash
-dotnet ef migrations list          # listar migraciones
-dotnet ef migrations add <Nombre>  # crear nueva migración tras cambios de modelo
-dotnet ef database update          # aplicar migraciones manualmente
-dotnet ef database drop            # eliminar la BD local
+dotnet ef migrations list          # listar historial de esquema
+dotnet ef migrations add <Nombre>  # solo si cambió el modelo
 ```
 
-> No es necesario ejecutarlos para correr la API: `Program.cs` llama a `db.Database.Migrate()` en el arranque.
+Para forzar migraciones al arrancar (no recomendado contra la BD compartida del equipo):
 
+```bash
+dotnet user-secrets set "Database:ApplyMigrationsOnStartup" "true"
+```
+
+> **Importante:** no actives migraciones automáticas contra la BD compartida de MonsterASP sin coordinar con el equipo.
 ## Historias de usuario cubiertas
 
 | HU | Historia | Módulo / Controladores |
@@ -252,18 +299,15 @@ dotnet ef database drop            # eliminar la BD local
 | HU-04 | Ver mascotas por especie | `MascotasController` |
 | HU-05 | Filtrar mascotas por atributos | `MascotasController` |
 | HU-06 | Filtrar mascotas por ubicación | `MascotasController` |
-| HU-07 | Enviar solicitud de adopción | `SolicitudesAdopcionController` / `AdopcionSolicitudesController` |
-| HU-08 | Gestión de solicitudes de adopción por el refugio | `GestionSolicitudesController` / `AdopcionGestionController` |
+| HU-07 | Enviar solicitud de adopción | `SolicitudesAdopcionController` |
+| HU-08 | Gestión de solicitudes de adopción por el refugio | `GestionSolicitudesController` |
 | HU-09 | Gestión de mascotas por el refugio | `MascotasController` |
 | HU-13 | Gestión y cobro de anuncios publicitarios (admin) | `AnunciosController` |
-| HU-14 | Reportar animal en situación de calle | `ReportesAnimalesController` / `ReporteCallejeroController` |
-| HU-15 | Panel de rescate: refugio recibe y atiende reportes | `ReportesRescateController` / `ReporteCallejeroPanelController` |
+| HU-14 | Reportar animal en situación de calle | `ReportesAnimalesController` |
+| HU-15 | Panel de rescate: refugio recibe y atiende reportes | `ReportesRescateController` |
 | HU-24 | Aprobación y control de refugios (admin) | `RefugiosController` |
 | HU-09 | Publicación de necesidades de donación y aportes de la comunidad (extensión de la gestión del refugio) | `NecesidadesDonacionController` |
 | HU-07/08/14/15 | Consulta y marcado de notificaciones (parte de los flujos de adopciones y reportes) | `NotificacionesController` |
-
-> **Nota de integración:** las HU-07/08 y HU-14/15 cuentan con **controladores paralelos** provenientes de ramas distintas (mismo comportamiento, rutas distintas). Ambos funcionan; la consolidación en un único controlador por HU está pendiente.
-
 ## Endpoints
 
 Los endpoints marcados con 🔒 exigen token JWT (`Authorization: Bearer <token>`) y rol. Ver [Seguridad](#seguridad).
@@ -307,7 +351,7 @@ Los endpoints marcados con 🔒 exigen token JWT (`Authorization: Bearer <token>
 
 ### Solicitudes de adopción — HU-07 / HU-08
 
-Envío por el usuario y decisión por el refugio. Existen dos conjuntos paralelos (ver nota de integración):
+Envío por el usuario y decisión por el refugio.
 
 | Método | Ruta | Descripción | Códigos |
 |--------|------|-------------|---------|
@@ -317,11 +361,6 @@ Envío por el usuario y decisión por el refugio. Existen dos conjuntos paralelo
 | GET 🔒 | `/api/GestionSolicitudes/{id}` | Detalle para el refugio | 200, 404 |
 | PUT 🔒 | `/api/GestionSolicitudes/{id}/aprobar` | Aprueba la solicitud (notifica al usuario; una mascota solo puede tener una aprobada) | 200, 400, 403, 404, 409 |
 | PUT 🔒 | `/api/GestionSolicitudes/{id}/rechazar` | Rechaza con comentario (notifica al usuario) | 200, 400, 403, 404 |
-| POST 🔒 | `/api/Adopcionsolicitudes` | Envío de solicitud (variante) | 201 |
-| GET 🔒 | `/api/Adopcionsolicitudes/{id}` | Detalle (variante, solo propia) | 200, 403, 404 |
-| GET 🔒 | `/api/Adopciongestion?estado=` | Listado para decisión (variante) | 200 |
-| PUT 🔒 | `/api/Adopciongestion/{id}/aprobar` / `/rechazar` | Decisión (variante) | 200 |
-
 ### Anuncios (`/api/Anuncios`) — HU-13
 
 | Método | Ruta | Descripción | Códigos |
@@ -360,14 +399,10 @@ Un reporte incluye ubicación (latitud/longitud); al crearlo se notifica automá
 | GET 🔒 | `/api/ReportesRescate?estado=` | Panel del refugio: reportes cercanos con distancia (refugio del token) | 200 |
 | GET 🔒 | `/api/ReportesRescate/{id}` | Detalle para el refugio | 200, 404 |
 | PUT 🔒 | `/api/ReportesRescate/{id}/atendido` | El refugio marca el reporte como atendido (quien lo atiende primero) | 200, 400, 404, 409 |
-| POST 🔒 | `/api/Reportecallejero` | Creación de reporte (variante) | 201 |
-| GET 🔒 | `/api/Reportecallejero/{id}` | Detalle (variante) | 200 |
-| GET 🔒 | `/api/Reportecallejeropanel?estado=` | Panel del refugio (variante) | 200 |
-| PUT 🔒 | `/api/Reportecallejeropanel/{id}/atender` | Atención de reporte (variante) | 200 |
 
 ## Modelo de datos
 
-Esquema creado por la migración `Inicial` (9 tablas):
+Esquema en MonsterASP (9 tablas; historial EF en `Migrations/`):
 
 | Tabla | Descripción |
 |-------|-------------|
@@ -385,7 +420,7 @@ Relaciones clave: `Mascota → Refugio` (borrado restrictivo), `SolicitudAdopcio
 
 ## Datos semilla
 
-La migración `Inicial` siembra: **11 cuentas**, **8 refugios**, **16 mascotas** y **3 usuarios**. Las cuentas de refugio usan la contraseña `Refugio2026!` y las de usuario `Usuario2026!`.
+Los datos de prueba están cargados en la BD de **MonsterASP**. Credenciales de referencia (contraseñas: Admin `Admin2026!`, Refugio `Refugio2026!`, Usuario `Usuario2026!`):
 
 | Cuenta | Correo | Rol | Estado |
 |--------|--------|-----|--------|
@@ -408,27 +443,28 @@ También se siembran 16 mascotas distribuidas en los refugios 1, 2, 3, 9001 y 90
 
 ```
 HuellitasSV.API/
-├── Controllers/           # Controladores REST (orden jerárquico: GETs → POSTs → PUTs → DELETEs)
-│   ├── AuthController.cs               # Login único con JWT para todos los roles (seguridad)
+├── Controllers/           # Controladores REST (orden: GETs → POSTs → PUTs → DELETEs)
+│   ├── AuthController.cs               # Login único con JWT
 │   ├── MascotasController.cs          # Catálogo, filtros y gestión (HU-4/5/6/9)
 │   ├── UsuariosController.cs          # Registro/login de usuarios (HU-1)
-│   ├── RefugiosController.cs          # Registro/login y aprobación de refugios (HU-2/24)
-│   ├── SolicitudesAdopcionController.cs / GestionSolicitudesController.cs   # Adopciones (HU-7/8)
-│   ├── Adopcionsolicitudescontroller.cs / Adopciongestioncontroller.cs       # Adopciones (variantes)
+│   ├── RefugiosController.cs          # Registro/login y aprobación (HU-2/24)
+│   ├── SolicitudesAdopcionController.cs  # Envío de solicitudes (HU-7)
+│   ├── GestionSolicitudesController.cs   # Decisión del refugio (HU-8)
 │   ├── AnunciosController.cs          # Espacios publicitarios (HU-13)
 │   ├── NecesidadesDonacionController.cs  # Donaciones (HU-9)
 │   ├── NotificacionesController.cs    # Notificaciones
-│   └── Reportes*Controller.cs         # Reportes callejeros y panel de rescate (HU-14/15)
-├── Data/                  # ApplicationDbContext (EF Core): DbSets, índices, relaciones y seed
-├── DTOs/                  # Objetos de entrada de cada endpoint (validación con Data Annotations)
-├── Models/                # Entidades EF Core: Mascota, Refugio, Cuenta, Usuario, SolicitudAdopcion,
-│                          # Notificacion, ReporteAnimal, NecesidadDonacion, Anuncio
-├── Migrations/            # Migraciones Inicial + AgregaCuentaAdminYSeguridad; se aplican al iniciar
-├── Security/              # JwtTokenService: emisión de tokens JWT firmados (seguridad)
-├── Swagger/               # DtoExamplesSchemaFilter (ejemplos válidos en Swagger) + botón Authorize
-├── Program.cs             # Host: DI, CORS, Swagger, JWT (UseAuthentication/UseAuthorization) y migraciones automáticas
-├── appsettings.json       # Cadena de conexión, sección Jwt (clave/issuer/audience/vigencia) y configuración
-└── HuellitasSV.API.http   # Peticiones de ejemplo por HU (VS Code REST Client)
+│   ├── ReportesAnimalesController.cs  # Reportes callejeros (HU-14)
+│   └── ReportesRescateController.cs   # Panel de rescate (HU-15)
+├── Data/                  # ApplicationDbContext (EF Core)
+├── DTOs/                  # Objetos de entrada (Data Annotations)
+├── Models/                # Entidades EF Core (9 tablas)
+├── Migrations/            # Historial de esquema (no se aplica al arrancar en cloud)
+├── Security/              # JwtTokenService
+├── Swagger/               # DtoExamplesSchemaFilter + Authorize
+├── Program.cs             # Host: DI, CORS, Swagger, JWT; conexión cloud sin Migrate por defecto
+├── appsettings.json       # Config base (cadena vacía; Jwt de desarrollo)
+├── appsettings.Local.json.example  # Plantilla de secretos MonsterASP
+└── HuellitasSV.API.http   # Peticiones de ejemplo
 ```
 
 ## Convenciones del código

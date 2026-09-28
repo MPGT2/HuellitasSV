@@ -1,8 +1,3 @@
-// [HU-XX] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
-// Se agregan Latitud/Longitud para la sección de publicidad de tiendas cercanas a un refugio.
-// Ciclo de vida: "pendiente" -> "activo" (aprobado por el admin) -> "vencido" (al llegar fecha_fin).
-// La visibilidad pública exige además pago_confirmado = true y que fecha_inicio ya haya iniciado.
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

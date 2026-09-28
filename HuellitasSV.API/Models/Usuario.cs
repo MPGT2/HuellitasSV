@@ -1,6 +1,3 @@
-// [HU-01] Michael Menendez: Entidad Usuario (tabla usuario).
-// Perfil de un usuario registrado; sus credenciales viven en la cuenta asociada (id_cuenta).
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

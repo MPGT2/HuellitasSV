@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Entidad Mascota (tabla mascota).
-// Los valores permitidos de Especie, Tamano, EstadoSalud y Estado se normalizan en minúsculas.
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

@@ -37,7 +37,7 @@ public class MascotasController : ControllerBase
     }
 
     // ============================================================
-    // 2) MÉTODOS [HttpGet]
+    // 1) MÉTODOS [HttpGet]
     // ============================================================
 
     /// <summary>

@@ -1,7 +1,3 @@
-// [HU-02] Michael Menendez: Entidad Cuenta (tabla cuenta).
-// Representa la cuenta de acceso (refugio/admin) asociada a un correo; el rol define el perfil
-// y el estado refleja el ciclo de aprobación gestionado por el administrador (HU-24).
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

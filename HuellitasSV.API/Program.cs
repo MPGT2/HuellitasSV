@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Host de la API.
-// Configura controladores, Swagger, CORS, formato de error 400 uniforme y el contexto EF Core.
-
 using System.Text;
 using System.Text.Json.Serialization;
 using HuellitasSV.API.Data;
@@ -82,12 +79,13 @@ builder.Services.AddSwaggerGen(options =>
         options.IncludeXmlComments(xmlPath);
 });
 
+// BD en MonsterASP: pega la cadena en appsettings.json → ConnectionStrings:DefaultConnection
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // [SEGURIDAD] Autenticación con JWT: los endpoints de gestión exigen un token firmado
 // emitido por AuthController/UsuariosController/RefugiosController con el rol de la cuenta.
-builder.Services.AddScoped<HuellitasSV.API.Security.JwtTokenService>();
+builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -132,12 +130,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Aplica las migraciones (crea la BD, tablas y datos semilla) automáticamente al iniciar la API.
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
-}
 
 app.Run();

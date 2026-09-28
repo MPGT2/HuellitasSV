@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Contrato de entrada (DTO) para la actualización de mascotas.
-// Todos los campos son opcionales para permitir actualizaciones parciales (PATCH-like con PUT).
-
 namespace HuellitasSV.API.DTOs;
 
 using System.ComponentModel.DataAnnotations;

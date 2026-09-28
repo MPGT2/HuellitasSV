@@ -11,3 +11,10 @@ obj/
 
 # Rider / VS temp
 *.tmp
+
+# Secretos locales (cadena MonsterASP / Jwt) — no versionar
+appsettings.Local.json
+**/secrets.json
+.env
+.env.*
+!)

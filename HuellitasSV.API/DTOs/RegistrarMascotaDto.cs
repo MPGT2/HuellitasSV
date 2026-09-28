@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Contrato de entrada (DTO) para el registro de mascotas.
-// Las reglas de validación se declaran con DataAnnotations y se aplican automáticamente por la API.
-
 namespace HuellitasSV.API.DTOs;
 
 using System.ComponentModel.DataAnnotations;

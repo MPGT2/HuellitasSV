@@ -1,6 +1,3 @@
-// [HU-XX] <Tu nombre>: Contrato de entrada (DTO) para publicar una necesidad urgente de insumos.
-// Las reglas de validación se declaran con DataAnnotations y se aplican automáticamente por la API.
-
 namespace HuellitasSV.API.DTOs;
 
 using System.ComponentModel.DataAnnotations;

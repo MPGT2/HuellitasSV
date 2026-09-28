@@ -1,6 +1,3 @@
-// [HU-10] Michael Menendez: Estructura base - Entidad Refugio (tabla refugio).
-// El estado de aprobación (pendiente/aprobado/rechazado) lo gestiona el proceso de solicitud de refugios.
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

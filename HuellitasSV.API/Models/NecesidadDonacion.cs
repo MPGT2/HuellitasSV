@@ -1,6 +1,3 @@
-// [HU-XX] <Tu nombre>: Publicación de necesidad urgente de insumos por parte del refugio.
-// Estado por defecto "activa"; pasa a "cubierta" automáticamente cuando cantidad_cubierta alcanza cantidad_requerida.
-
 namespace HuellitasSV.API.Models;
 
 using System.ComponentModel.DataAnnotations;

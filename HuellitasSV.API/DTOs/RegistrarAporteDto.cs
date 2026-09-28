@@ -1,5 +1,3 @@
-// [HU-XX] <Tu nombre>: Contrato de entrada (DTO) para registrar un aporte de la comunidad.
-
 namespace HuellitasSV.API.DTOs;
 
 using System.ComponentModel.DataAnnotations;

@@ -1,7 +1,3 @@
-// [HU-09] Michael Menendez: Publicar necesidad urgente de insumos y cobertura automática.
-// Endpoints: GET /api/NecesidadesDonacion, POST /api/NecesidadesDonacion (🔒 Refugio), POST /api/NecesidadesDonacion/{id}/aportar (🔒 Usuario)
-// [SEGURIDAD] Publicar y aportar exigen token JWT; el refugio/usuario se toma del token.
-
 namespace HuellitasSV.API.Controllers;
 
 using System.Linq;

@@ -1,5 +1,3 @@
-// [HU-XX] <Tu nombre>: Contrato de entrada (DTO) para solicitar un espacio publicitario.
-
 namespace HuellitasSV.API.DTOs;
 
 using System.ComponentModel.DataAnnotations;

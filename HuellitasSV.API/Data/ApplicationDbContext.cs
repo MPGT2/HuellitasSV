@@ -1,10 +1,4 @@
-﻿// [HU-10] Michael Menendez: Estructura base - Contexto de base de datos (Entity Framework Core).
-// Configura índices y la relación Mascota -> Refugio con borrado restrictivo.
-// [HU-7/8/14/15] Alfredo López: integra las entidades de adopción, notificaciones y reportes de rescate.
-// [HU-01/02] Michael Menendez: integra Cuenta y el perfil Usuario vinculado a una cuenta.
-// [HU-13] Oscar Ramírez: integra Anuncio (espacios publicitarios).
-
-namespace HuellitasSV.API.Data;
+﻿namespace HuellitasSV.API.Data;
 
 using Microsoft.EntityFrameworkCore;
 using HuellitasSV.API.Models;
