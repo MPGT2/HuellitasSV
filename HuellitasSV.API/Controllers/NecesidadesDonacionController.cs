@@ -12,8 +12,8 @@ using HuellitasSV.API.Models;
 
 /// <summary>
 /// Controlador de necesidades urgentes de insumos publicadas por los refugios.
-/// [SEGURIDAD] Publicar exige token de rol "Refugio" (idRefugio del token) y aportar exige
-/// token de rol "Usuario" (idUsuario del token). El listado es público.
+/// [SEGURIDAD] Publicar y eliminar exigen token de rol "Refugio" (idRefugio del token) y aportar
+/// exige token de rol "Usuario" (idUsuario del token). El listado es público.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -158,5 +158,45 @@ public class NecesidadesDonacionController : ControllerBase
                 necesidad.Estado
             }
         });
+    }
+
+    /// <summary>
+    /// Elimina una necesidad de donación publicada por error. Solo el refugio dueño
+    /// puede eliminarla, y solo si sigue "activa" sin aportes registrados todavía
+    /// (para no borrar algo que la comunidad ya empezó a cubrir).
+    /// </summary>
+    /// <response code="204">Necesidad eliminada.</response>
+    /// <response code="400">La necesidad ya tiene aportes o no está "activa".</response>
+    /// <response code="403">El token no pertenece al refugio dueño de la necesidad.</response>
+    /// <response code="404">Necesidad no encontrada.</response>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Refugio")]
+    public async Task<IActionResult> EliminarNecesidad(long id)
+    {
+        // [SEGURIDAD] El refugio se toma del token JWT, igual que en PublicarNecesidad.
+        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+            ? idRefugioClaim
+            : 0;
+
+        if (idRefugioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
+        var necesidad = await _context.NecesidadesDonacion.FindAsync(id);
+        if (necesidad == null)
+            return NotFound(new { error = "Necesidad de donación no encontrada." });
+
+        if (necesidad.IdRefugio != idRefugioToken)
+            return Forbid();
+
+        if (necesidad.CantidadCubierta > 0)
+            return BadRequest(new { error = "No se puede eliminar una necesidad que ya recibió aportes." });
+
+        if (necesidad.Estado != "activa")
+            return BadRequest(new { error = $"Solo se pueden eliminar necesidades en estado 'activa'. Estado actual: {necesidad.Estado}." });
+
+        _context.NecesidadesDonacion.Remove(necesidad);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
     }
 }
