@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Controlador de mascotas de HuellitasSV: catálogo público y gestión CRUD (HU-09),
+/// Controlador de mascotas de HuellitasSV: catálogo público (HU-03), gestión CRUD (HU-09),
 /// filtro por especie (HU-04), filtro por atributos (HU-05) y filtro por ubicación del refugio (HU-06).
 /// </summary>
 [ApiController]
@@ -41,14 +41,16 @@ public class MascotasController : ControllerBase
     // ============================================================
 
     /// <summary>
-    /// [HU-09] Obtiene el catálogo público con todas las mascotas en estado "disponible".
+    /// [HU-03] Obtiene el catálogo público con todas las mascotas en estado "disponible"
+    /// (foto, nombre y datos básicos). Si no hay ninguna, responde con un mensaje de "sin resultados".
     /// </summary>
-    /// <returns>ActionResult con la lista de mascotas disponibles en formato JSON.</returns>
-    /// <response code="200">Catálogo de mascotas disponibles (lista vacía si no hay resultados).</response>
+    /// <returns>ActionResult con el total, el mensaje informativo y la lista de mascotas disponibles en formato JSON.</returns>
+    /// <response code="200">Catálogo de mascotas disponibles; si está vacío incluye el mensaje "sin resultados".</response>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<MascotaRespuestaDto>>> ObtenerCatalogo()
+    public async Task<ActionResult<CatalogoRespuestaDto>> ObtenerCatalogo()
     {
-        var catalogo = await _context.Mascota
+        var mascotas = await _context.Mascota
+            .AsNoTracking()
             .Where(m => m.Estado == "disponible")
             .OrderByDescending(m => m.FechaRegistro)
             .Select(m => new MascotaRespuestaDto
@@ -65,7 +67,14 @@ public class MascotasController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(catalogo);
+        return Ok(new CatalogoRespuestaDto
+        {
+            Total = mascotas.Count,
+            Mensaje = mascotas.Count == 0
+                ? "Sin resultados: por el momento no hay mascotas disponibles."
+                : null,
+            Mascotas = mascotas
+        });
     }
 
     /// <summary>
@@ -467,6 +476,21 @@ public class MascotasController : ControllerBase
 
         return true;
     }
+}
+
+/// <summary>
+/// DTO de respuesta del catálogo público (HU-03): lista de mascotas más un mensaje cuando no hay resultados.
+/// </summary>
+public sealed class CatalogoRespuestaDto
+{
+    /// <summary>Cantidad de mascotas disponibles devueltas.</summary>
+    public int Total { get; set; }
+
+    /// <summary>Mensaje de "sin resultados"; es null cuando existen mascotas disponibles.</summary>
+    public string? Mensaje { get; set; }
+
+    /// <summary>Mascotas disponibles con foto, nombre y datos básicos.</summary>
+    public List<MascotaRespuestaDto> Mascotas { get; set; } = new();
 }
 
 /// <summary>

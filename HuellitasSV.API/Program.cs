@@ -123,6 +123,9 @@ else
     app.UseHttpsRedirection();
 }
 
+// [HU-03] Sirve las fotos subidas en wwwroot/imagenes/mascotas (ImagenUrl relativo).
+app.UseStaticFiles();
+
 app.UseCors("PermitirFrontend");
 
 // [SEGURIDAD] Orden obligatorio: autenticación (valida el JWT) y luego autorización ([Authorize]/[AllowAnonymous]).
