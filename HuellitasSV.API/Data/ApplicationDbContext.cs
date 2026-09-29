@@ -40,6 +40,9 @@ public class ApplicationDbContext : DbContext
     /// <summary>Conjunto de reportes de animales callejeros (HU-14 y HU-15).</summary>
     public DbSet<ReporteAnimal> ReportesAnimales { get; set; } = null!;
 
+    /// <summary>Conjunto de calificaciones por estrellas de los refugios (HU-10).</summary>
+    public DbSet<Calificacion> Calificaciones { get; set; } = null!;
+
     /// <summary>
     /// Modelado de índices y relaciones.
     /// </summary>
@@ -142,6 +145,25 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(r => r.Refugio)
                 .WithMany()
                 .HasForeignKey(r => r.IdRefugio)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Calificacion>(entity =>
+        {
+            // Solo se permiten calificaciones de 1 a 5 estrellas.
+            entity.ToTable(t => t.HasCheckConstraint("CK_calificacion_estrellas", "estrellas BETWEEN 1 AND 5"));
+
+            // Un usuario califica una sola vez a cada refugio; el índice también acelera el promedio por refugio.
+            entity.HasIndex(c => new { c.IdRefugio, c.IdUsuario }).IsUnique();
+
+            entity.HasOne(c => c.Refugio)
+                .WithMany()
+                .HasForeignKey(c => c.IdRefugio)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(c => c.Usuario)
+                .WithMany()
+                .HasForeignKey(c => c.IdUsuario)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

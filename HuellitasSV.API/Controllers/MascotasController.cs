@@ -42,7 +42,8 @@ public class MascotasController : ControllerBase
 
     /// <summary>
     /// [HU-03] Obtiene el catálogo público con todas las mascotas en estado "disponible"
-    /// (foto, nombre y datos básicos). Si no hay ninguna, responde con un mensaje de "sin resultados".
+    /// (foto, nombre y datos básicos) junto con el refugio y su calificación por estrellas (HU-10).
+    /// Si no hay ninguna mascota, responde con un mensaje de "sin resultados".
     /// </summary>
     /// <returns>ActionResult con el total, el mensaje informativo y la lista de mascotas disponibles en formato JSON.</returns>
     /// <response code="200">Catálogo de mascotas disponibles; si está vacío incluye el mensaje "sin resultados".</response>
@@ -63,7 +64,18 @@ public class MascotasController : ControllerBase
                 EstadoSalud = m.EstadoSalud,
                 Estado = m.Estado,
                 FechaRegistro = m.FechaRegistro,
-                ImagenUrl = m.ImagenUrl
+                ImagenUrl = m.ImagenUrl,
+                Refugio = new RefugioRespuestaDto
+                {
+                    IdRefugio = m.IdRefugio,
+                    NombreOrganizacion = m.Refugio!.NombreOrganizacion,
+                    Departamento = m.Refugio!.Departamento,
+                    Municipio = m.Refugio!.Municipio,
+                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.IdRefugio),
+                    PromedioEstrellas = _context.Calificaciones
+                        .Where(c => c.IdRefugio == m.IdRefugio)
+                        .Average(c => (double?)c.Estrellas)
+                }
             })
             .ToListAsync();
 
@@ -227,9 +239,14 @@ public class MascotasController : ControllerBase
                 ImagenUrl = m.ImagenUrl,
                 Refugio = new RefugioRespuestaDto
                 {
+                    IdRefugio = m.IdRefugio,
                     NombreOrganizacion = m.Refugio!.NombreOrganizacion,
                     Departamento = m.Refugio!.Departamento,
-                    Municipio = m.Refugio!.Municipio
+                    Municipio = m.Refugio!.Municipio,
+                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.IdRefugio),
+                    PromedioEstrellas = _context.Calificaciones
+                        .Where(c => c.IdRefugio == m.IdRefugio)
+                        .Average(c => (double?)c.Estrellas)
                 }
             })
             .ToListAsync();
@@ -531,10 +548,15 @@ public sealed class MascotaRespuestaDto
 }
 
 /// <summary>
-/// DTO de respuesta con los datos públicos de ubicación de un refugio.
+/// DTO de respuesta con los datos públicos de un refugio: ubicación y calificación por estrellas (HU-10).
 /// </summary>
 public sealed class RefugioRespuestaDto
 {
+    private double? _promedioEstrellas;
+
+    /// <summary>Identificador único del refugio.</summary>
+    public long IdRefugio { get; set; }
+
     /// <summary>Nombre de la organización del refugio.</summary>
     public string NombreOrganizacion { get; set; } = string.Empty;
 
@@ -543,4 +565,20 @@ public sealed class RefugioRespuestaDto
 
     /// <summary>Municipio donde se ubica el refugio.</summary>
     public string Municipio { get; set; } = string.Empty;
+
+    /// <summary>Promedio de estrellas (1 a 5, un decimal); es null cuando el refugio no tiene calificaciones.</summary>
+    public double? PromedioEstrellas
+    {
+        get => _promedioEstrellas;
+        set => _promedioEstrellas = value.HasValue ? Math.Round(value.Value, 1) : null;
+    }
+
+    /// <summary>Número de calificaciones registradas para el refugio.</summary>
+    public int TotalCalificaciones { get; set; }
+
+    /// <summary>Texto listo para mostrar: "Sin calificaciones" o el promedio con el número de calificaciones.</summary>
+    public string CalificacionTexto =>
+        TotalCalificaciones == 0 || PromedioEstrellas is null
+            ? "Sin calificaciones"
+            : $"{PromedioEstrellas.Value.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} estrellas ({TotalCalificaciones} {(TotalCalificaciones == 1 ? "calificación" : "calificaciones")})";
 }
