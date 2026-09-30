@@ -40,18 +40,45 @@ GET {{Host}}/api/Refugios/pendientes
 Authorization: Bearer {{tokenAdmin}}
 Accept: application/json
 
-### [HU-02] Registrar refugio (queda en estado "pendiente")
+### [HU-02] Registrar refugio (multipart/form-data; la documentación es opcional)
+# El endpoint usa [FromForm]: todos los campos van como multipart.
+# Para adjuntar la documentación (PDF/JPG) descomenta el bloque "Documentacion" del final.
 POST {{Host}}/api/Refugios/registro
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=----HuellitasBoundary
 
-{
-  "nombreOrganizacion": "Refugio Patitas Soyapango",
-  "correo": "patitas@refugio.org",
-  "contrasena": "Refugio2026!",
-  "departamento": "San Salvador",
-  "municipio": "Soyapango",
-  "contacto": "2222-0000"
-}
+------HuellitasBoundary
+Content-Disposition: form-data; name="NombreOrganizacion"
+
+Refugio Patitas Soyapango
+------HuellitasBoundary
+Content-Disposition: form-data; name="Correo"
+
+patitas@refugio.org
+------HuellitasBoundary
+Content-Disposition: form-data; name="Contrasena"
+
+Refugio2026!
+------HuellitasBoundary
+Content-Disposition: form-data; name="Departamento"
+
+San Salvador
+------HuellitasBoundary
+Content-Disposition: form-data; name="Municipio"
+
+Soyapango
+------HuellitasBoundary
+Content-Disposition: form-data; name="Contacto"
+
+2222-0000
+------HuellitasBoundary--
+
+# --- Variante con archivo: reemplaza el cierre "------HuellitasBoundary--" de arriba por: ---
+# ------HuellitasBoundary
+# Content-Disposition: form-data; name="Documentacion"; filename="acta.pdf"
+# Content-Type: application/pdf
+#
+# < ./archivos/acta.pdf
+# ------HuellitasBoundary--
 
 ### [HU-02] Inicio de sesión del refugio (solo cuentas aprobadas)
 POST {{Host}}/api/Refugios/login
@@ -117,19 +144,46 @@ GET {{Host}}/api/Refugios/pendientes
 Authorization: Bearer eyJ...PEGA_AQUI_EL_TOKEN...
 Accept: application/json
 
-### [HU-9] Registrar mascota (🔒 Refugio)
+### [HU-9] Registrar mascota (🔒 Refugio, multipart/form-data; imagen opcional)
+# El endpoint usa [FromForm] + IFormFile. IdRefugio es obligatorio en el DTO
+# aunque el backend tome el refugio del token. Adjunta la foto en el campo "imagen".
 POST {{Host}}/api/Mascotas
 Authorization: Bearer {{tokenRefugio}}
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=----HuellitasBoundary
 
-{
-  "idRefugio": 9001,
-  "nombre": "Firulais",
-  "especie": "perro",
-  "tamano": "mediano",
-  "edadMeses": 24,
-  "estadoSalud": "sano"
-}
+------HuellitasBoundary
+Content-Disposition: form-data; name="IdRefugio"
+
+9001
+------HuellitasBoundary
+Content-Disposition: form-data; name="Nombre"
+
+Firulais
+------HuellitasBoundary
+Content-Disposition: form-data; name="Especie"
+
+perro
+------HuellitasBoundary
+Content-Disposition: form-data; name="Tamano"
+
+mediano
+------HuellitasBoundary
+Content-Disposition: form-data; name="EdadMeses"
+
+24
+------HuellitasBoundary
+Content-Disposition: form-data; name="EstadoSalud"
+
+sano
+------HuellitasBoundary--
+
+# --- Variante con imagen: reemplaza el cierre "------HuellitasBoundary--" de arriba por: ---
+# ------HuellitasBoundary
+# Content-Disposition: form-data; name="imagen"; filename="firulais.jpg"
+# Content-Type: image/jpeg
+#
+# < ./archivos/firulais.jpg
+# ------HuellitasBoundary--
 
 ### [HU-9] Actualizar mascota (🔒 Refugio)
 PUT {{Host}}/api/Mascotas/1
@@ -162,17 +216,37 @@ Accept: application/json
 GET {{Host}}/api/Anuncios?estado=activo
 Accept: application/json
 
-### [HU-14] Crear reporte callejero (🔒 Usuario)
+### [HU-14] Crear reporte callejero (🔒 Usuario, multipart/form-data)
+# La foto es obligatoria: súbela en el campo "Foto" o envía una URL en "FotoUrl".
 POST {{Host}}/api/ReportesAnimales
 Authorization: Bearer {{tokenUsuario}}
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=----HuellitasBoundary
 
-{
-  "descripcion": "Perro pequeño en la acera, sin collar.",
-  "fotoUrl": "https://ejemplo.com/foto.jpg",
-  "latitud": 13.6929,
-  "longitud": -89.2182
-}
+------HuellitasBoundary
+Content-Disposition: form-data; name="Descripcion"
+
+Perro pequeño en la acera, sin collar.
+------HuellitasBoundary
+Content-Disposition: form-data; name="Latitud"
+
+13.6929
+------HuellitasBoundary
+Content-Disposition: form-data; name="Longitud"
+
+-89.2182
+------HuellitasBoundary
+Content-Disposition: form-data; name="FotoUrl"
+
+https://ejemplo.com/foto.jpg
+------HuellitasBoundary--
+
+# --- Variante con archivo: reemplaza el bloque "FotoUrl" por: ---
+# ------HuellitasBoundary
+# Content-Disposition: form-data; name="Foto"; filename="reporte.jpg"
+# Content-Type: image/jpeg
+#
+# < ./archivos/reporte.jpg
+# ------HuellitasBoundary--
 
 ### [HU-15] Panel de rescate (🔒 Refugio)
 GET {{Host}}/api/ReportesRescate?estado=Pendiente

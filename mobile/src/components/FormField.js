@@ -15,7 +15,7 @@ export default function FormField({ label, error, secureTextEntry, style, ...inp
       <View style={styles.inputWrapper}>
         <TextInput
           style={[styles.input, error ? styles.inputError : null]}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.placeholder}
           secureTextEntry={isPassword && !visible}
           {...inputProps}
         />
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   input: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: colors.danger,
   },
   eye: {
     position: 'absolute',
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.danger,
     marginTop: 6,
   },
 });

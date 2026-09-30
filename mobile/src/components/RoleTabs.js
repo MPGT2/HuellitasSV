@@ -30,7 +30,7 @@ export default function RoleTabs({ value, onChange }) {
                 <Ionicons
                   name={role.icon}
                   size={22}
-                  color={selected ? '#FFFFFF' : '#94A3B8'}
+                  color={selected ? colors.onPrimary : colors.placeholder}
                 />
               </View>
               <Text style={[styles.label, selected ? styles.labelSelected : null]}>
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   tabSelected: {
     borderColor: colors.text,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: colors.primarySoft,
   },
   iconContainer: {
     width: 44,
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   iconMuted: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceMuted,
   },
   label: {
     fontSize: 13,

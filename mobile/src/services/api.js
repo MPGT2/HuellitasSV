@@ -43,13 +43,20 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const isForm = options.body instanceof FormData;
+
+    const headers = { ...this.getHeaders(options.auth !== false), ...options.headers };
+    // Con FormData la plataforma debe fijar el Content-Type con su boundary.
+    // Dejar "application/json" aqui rompe el parseo multipart en el servidor.
+    if (isForm) delete headers['Content-Type'];
+
     const config = {
       ...options,
-      headers: { ...this.getHeaders(options.auth !== false), ...options.headers },
+      headers,
     };
 
     // FormData ya fija su propio boundary: no se puede stringify.
-    if (config.body && !(config.body instanceof FormData)) {
+    if (config.body && !isForm) {
       config.body = JSON.stringify(config.body);
     }
 
@@ -65,15 +72,26 @@ class ApiService {
       );
     }
 
-    // 204 y algunos 200 vienen sin cuerpo.
+    // 204 y algunos 200 vienen sin cuerpo. Algunos endpoints devuelven errores
+    // como texto plano (no JSON), asi que el parse es tolerante: si no es JSON
+    // se conserva el texto para poder mostrarlo al usuario.
     const texto = await response.text();
-    const data = texto ? JSON.parse(texto) : null;
+    let data = null;
+    if (texto) {
+      try {
+        data = JSON.parse(texto);
+      } catch {
+        data = texto;
+      }
+    }
 
     if (!response.ok) {
       const mensaje =
+        (typeof data === 'string' ? data : null) ||
         data?.error ||
         data?.message ||
         data?.title ||
+        data?.errores?.[0] ||
         data?.errors?.[0] ||
         `Error ${response.status}`;
       throw new Error(mensaje);
@@ -101,10 +119,25 @@ class ApiService {
     });
   }
 
-  async registerRefugio(nombreOrganizacion, correo, contrasena, departamento, municipio, contacto) {
+  async registerRefugio(nombreOrganizacion, correo, contrasena, departamento, municipio, contacto, documento) {
+    // El endpoint usa [FromForm]: todo viaja como multipart/form-data.
+    const formData = new FormData();
+    formData.append('NombreOrganizacion', nombreOrganizacion);
+    formData.append('Correo', correo);
+    formData.append('Contrasena', contrasena);
+    formData.append('Departamento', departamento);
+    formData.append('Municipio', municipio);
+    formData.append('Contacto', contacto);
+    if (documento) {
+      formData.append('Documentacion', {
+        uri: documento.uri,
+        type: documento.mimeType || 'application/octet-stream',
+        name: documento.name || 'documento.pdf',
+      });
+    }
     return this.request('/Refugios/registro', {
       method: 'POST',
-      body: { nombreOrganizacion, correo, contrasena, departamento, municipio, contacto },
+      body: formData,
       auth: false,
     });
   }
@@ -130,6 +163,11 @@ class ApiService {
   // Refugio profile
   async getRefugioPerfil() {
     return this.request('/Refugios/perfil');
+  }
+
+  // Perfil publico de un refugio (nombre, ubicacion, contacto y calificacion).
+  async getRefugioById(id) {
+    return this.request(`/Refugios/${id}`, { auth: false });
   }
 
   async updateRefugioPerfil(data) {
@@ -259,10 +297,23 @@ class ApiService {
     return this.request(`/ReportesAnimales/${id}`);
   }
 
-  async crearReporte(descripcion, fotoUrl, latitud, longitud) {
+  async crearReporte({ descripcion, latitud, longitud, fotoUrl }, foto) {
+    // multipart/form-data: la foto viaja como archivo; FotoUrl es el respaldo.
+    const formData = new FormData();
+    formData.append('Descripcion', descripcion);
+    formData.append('Latitud', String(latitud));
+    formData.append('Longitud', String(longitud));
+    if (fotoUrl) formData.append('FotoUrl', fotoUrl);
+    if (foto) {
+      formData.append('Foto', {
+        uri: foto.uri,
+        type: foto.mimeType || 'image/jpeg',
+        name: foto.fileName || 'reporte.jpg',
+      });
+    }
     return this.request('/ReportesAnimales', {
       method: 'POST',
-      body: { descripcion, fotoUrl, latitud, longitud },
+      body: formData,
     });
   }
 

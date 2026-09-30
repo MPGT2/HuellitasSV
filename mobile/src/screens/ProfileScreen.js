@@ -293,7 +293,7 @@ export default function ProfileScreen() {
             style={styles.logoutButton}
             onPress={handleLogout}
           >
-            <Ionicons name="log-out" size={18} color="#EF4444" />
+            <Ionicons name="log-out" size={18} color={colors.danger} />
             <Text style={styles.logoutText}>Cerrar sesión</Text>
           </TouchableOpacity>
 
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 40,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   userName: {
     fontSize: 22,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   roleBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 6,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: colors.danger,
   },
   version: {
     textAlign: 'center',

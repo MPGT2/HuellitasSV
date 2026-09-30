@@ -9,12 +9,12 @@ namespace HuellitasSV.API.Controllers;
 
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
 using HuellitasSV.API.Security;
+using HuellitasSV.API.Services;
 
 /// <summary>
 /// Controlador de autenticación con JWT: emite tokens firmados para cuentas válidas
@@ -26,17 +26,22 @@ public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly JwtTokenService _tokenService;
-
-    /// <summary>Componente de hash de contraseñas (PBKDF2, compartido con HU-01/HU-02).</summary>
-    private static readonly PasswordHasher<Cuenta> _hasher = new();
+    private readonly IPasswordService _passwords;
+    private readonly IAccountStatePolicy _estadoCuenta;
 
     /// <summary>
-    /// Inicializa el controlador con el contexto de base de datos y el servicio de tokens.
+    /// Inicializa el controlador con el contexto de base de datos y los servicios compartidos.
     /// </summary>
-    public AuthController(ApplicationDbContext context, JwtTokenService tokenService)
+    public AuthController(
+        ApplicationDbContext context,
+        JwtTokenService tokenService,
+        IPasswordService passwords,
+        IAccountStatePolicy estadoCuenta)
     {
         _context = context;
         _tokenService = tokenService;
+        _passwords = passwords;
+        _estadoCuenta = estadoCuenta;
     }
 
     /// <summary>
@@ -60,24 +65,23 @@ public class AuthController : ControllerBase
 
         // Error genérico sin revelar si falló el correo o la contraseña.
         var cuenta = await _context.Cuenta.FirstOrDefaultAsync(c => c.Correo == correo);
-        if (cuenta == null || !VerificarContrasena(cuenta, dto.Contrasena))
+        if (cuenta == null || !await _passwords.VerificarAsync(cuenta, dto.Contrasena))
         {
             return Unauthorized(new { error = "Credenciales incorrectas." });
         }
 
         // Regla de negocio: estados que impiden el acceso según el rol.
-        if (cuenta.Rol == "Usuario")
+        if (_estadoCuenta.EstaBloqueada(cuenta))
         {
-            if (cuenta.Estado == "inactivo" || cuenta.Estado == "bloqueado")
+            return StatusCode(StatusCodes.Status403Forbidden, new
             {
-                var motivo = cuenta.Estado == "inactivo" ? "inactiva" : "bloqueada";
-                return StatusCode(StatusCodes.Status403Forbidden, new
-                {
-                    error = $"Acceso denegado: su cuenta está {motivo}. Contacte al administrador."
-                });
-            }
+                error = _estadoCuenta.ConstruirMensajeBloqueo(cuenta)
+            });
         }
-        else if (cuenta.Estado != "aprobado" && cuenta.Estado != "activo")
+
+        // Un usuario no tiene estados de aprobación: con no estar bloqueado basta.
+        // Refugios y admins sí necesitan "aprobado" o "activo".
+        if (cuenta.Rol != "Usuario" && cuenta.Estado != "aprobado" && cuenta.Estado != "activo")
         {
             var motivo = cuenta.Estado == "pendiente"
                 ? "pendiente de aprobación"
@@ -118,14 +122,5 @@ public class AuthController : ControllerBase
             idRefugio,
             idUsuario
         });
-    }
-
-    /// <summary>
-    /// Verifica la contraseña contra el hash PBKDF2 almacenado.
-    /// </summary>
-    private bool VerificarContrasena(Cuenta cuenta, string contrasena)
-    {
-        var resultado = _hasher.VerifyHashedPassword(cuenta, cuenta.Contrasena, contrasena);
-        return resultado != PasswordVerificationResult.Failed;
     }
 }

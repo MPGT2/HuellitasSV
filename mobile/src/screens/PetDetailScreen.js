@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { api } from '../services/api';
+import { resolveImageUrl } from '../config/env';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,10 +31,27 @@ export default function PetDetailScreen() {
     if (petFromRoute) {
       setPet(petFromRoute);
       setLoading(false);
+      // El objeto que llega por ruta puede venir incompleto (por ejemplo desde
+      // el panel del refugio, sin contacto ni calificacion). Se pide el detalle
+      // para completarlo; si falla, la pantalla ya muestra lo que tenia.
+      if (petFromRoute.idMascota) {
+        try {
+          const detalle = await api.getMascotaById(petFromRoute.idMascota);
+          if (detalle) setPet(detalle);
+        } catch (err) {
+          console.warn('No se pudo completar el detalle:', err.message);
+        }
+      }
       return;
     }
     // If we don't have pet from route, we'd need an ID to fetch
     setLoading(false);
+  };
+
+  const formatFecha = (fecha) => {
+    if (!fecha) return '—';
+    const d = new Date(fecha);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es-ES');
   };
 
   useEffect(() => {
@@ -76,7 +94,7 @@ export default function PetDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.imageContainer}>
-          <Image source={{ uri: pet.imagenUrl || 'https://via.placeholder.com/400x300' }} style={styles.image} />
+          <Image source={{ uri: resolveImageUrl(pet.imagenUrl) || 'https://via.placeholder.com/400x300' }} style={styles.image} />
           <View style={styles.imageOverlay}>
             <View style={styles.statusBadge}>
               <Text style={styles.statusText}>{pet.estado}</Text>
@@ -88,12 +106,17 @@ export default function PetDetailScreen() {
           <View style={styles.header}>
             <Text style={styles.name}>{pet.nombre}</Text>
             <View style={styles.speciesBadge}>
-              <Ionicons name={pet.especie === 'perro' ? 'paw' : pet.especie === 'gato' ? 'cat' : 'ellipse'} size={16} color="#FFFFFF" />
+              <Ionicons name={pet.especie === 'perro' ? 'paw' : pet.especie === 'gato' ? 'cat' : 'ellipse'} size={16} color={colors.onPrimary} />
               <Text style={styles.speciesText}>{pet.especie}</Text>
             </View>
           </View>
 
-          <View style={styles.refugioInfo}>
+          <TouchableOpacity
+            style={styles.refugioInfo}
+            activeOpacity={0.7}
+            disabled={!pet.refugio}
+            onPress={() => nav.navigate('RefugioProfile', { refugio: pet.refugio })}
+          >
             <Ionicons name="home" size={20} color={colors.primary} />
             <View style={styles.refugioDetails}>
               <Text style={styles.refugioName}>{pet.refugio?.nombreOrganizacion || 'Refugio'}</Text>
@@ -101,7 +124,8 @@ export default function PetDetailScreen() {
                 {pet.refugio?.municipio}, {pet.refugio?.departamento}
               </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </TouchableOpacity>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Información</Text>
@@ -125,7 +149,7 @@ export default function PetDetailScreen() {
                 <Ionicons name="calendar" size={20} color={colors.primary} />
                 <Text style={styles.infoLabel}>Registrado</Text>
                 <Text style={styles.infoValue}>
-                  {new Date(pet.fechaRegistro).toLocaleDateString('es-ES')}
+                  {formatFecha(pet.fechaRegistro)}
                 </Text>
               </View>
             </View>
@@ -142,7 +166,7 @@ export default function PetDetailScreen() {
                       key={i}
                       name={i < Math.round(pet.refugio.promedioEstrellas) ? 'star' : 'star-outline'}
                       size={20}
-                      color="#FBBF24"
+                      color={colors.warningStrong}
                     />
                   ))}
                 </View>
@@ -159,7 +183,7 @@ export default function PetDetailScreen() {
               onPress={handleAdoptar}
               disabled={adopting}
             >
-              <Ionicons name="heart" size={20} color="#FFFFFF" />
+              <Ionicons name="heart" size={20} color={colors.onPrimary} />
               <Text style={styles.adoptText}>
                 {adopting ? 'Procesando...' : 'Solicitar Adopción'}
               </Text>
@@ -231,7 +255,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     textTransform: 'capitalize',
   },
   content: {
@@ -262,7 +286,7 @@ const styles = StyleSheet.create({
   speciesText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     textTransform: 'capitalize',
   },
   refugioInfo: {
@@ -270,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.chipActive,
     borderRadius: 12,
   },
   refugioDetails: {
@@ -305,7 +329,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
   },
   infoLabel: {
@@ -354,17 +378,17 @@ const styles = StyleSheet.create({
   adoptText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   loginPrompt: {
     padding: 16,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.chipActive,
     borderRadius: 12,
     alignItems: 'center',
   },
   loginPromptText: {
     fontSize: 14,
-    color: '#92400E',
+    color: colors.warningTextStrong,
     textAlign: 'center',
   },
   contactText: {

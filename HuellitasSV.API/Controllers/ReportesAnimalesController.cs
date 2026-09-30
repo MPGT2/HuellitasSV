@@ -1,9 +1,10 @@
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace HuellitasSV.API.Controllers;
 
@@ -23,13 +24,26 @@ public class ReportesAnimalesController : ControllerBase
 
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
+    /// <summary>Servicio de guardado de la foto del reporte.</summary>
+    private readonly IArchivoService _archivos;
+
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="ReportesAnimalesController"/>.
     /// </summary>
     /// <param name="context">Contexto de base de datos inyectado.</param>
-    public ReportesAnimalesController(ApplicationDbContext context)
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    /// <param name="archivos">Servicio de guardado de archivos.</param>
+    public ReportesAnimalesController(
+        ApplicationDbContext context,
+        ICurrentUserService usuarioActual,
+        IArchivoService archivos)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
+        _archivos = archivos;
     }
 
     /// <summary>
@@ -42,9 +56,7 @@ public class ReportesAnimalesController : ControllerBase
     [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ReporteAnimal>>> GetMisReportes([FromQuery] string? estado)
     {
-        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-            ? idUsuarioClaim
-            : 0;
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
         if (idUsuarioToken <= 0)
             return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
@@ -96,38 +108,53 @@ public class ReportesAnimalesController : ControllerBase
     /// - Al registrarse, el sistema calcula la distancia a cada refugio y notifica a los que estén
     ///   a 5 km o menos de la ubicación reportada.
     /// </remarks>
-    /// <param name="reporte">Datos del reporte: usuario, descripción, foto y ubicación.</param>
+    /// <param name="dto">Datos del reporte (multipart/form-data): descripción, ubicación y foto.</param>
     /// <returns>El reporte creado con estado "Pendiente", o un error de validación.</returns>
     [HttpPost]
-    public async Task<ActionResult<ReporteAnimal>> PostReporte([FromBody] ReporteAnimal reporte)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ReporteAnimal>> PostReporte([FromForm] CrearReporteDto dto)
     {
-        // La validación de [Required] sobre Latitud/Longitud bloquea aquí con 400 si no hay ubicación.
+        // La validación de [Required]/[Range] del DTO bloquea aquí con 400 si faltan datos.
 
-        // [SEGURIDAD] El usuario reportante se toma del token JWT (se ignora el IdUsuario del body).
-        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-            ? idUsuarioClaim
-            : 0;
+        // [SEGURIDAD] El usuario reportante se toma del token JWT (se ignora cualquier IdUsuario del cliente).
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
         if (idUsuarioToken <= 0)
         {
             return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
         }
 
-        reporte.IdUsuario = idUsuarioToken;
-
-        var usuario = await _context.Usuarios.FindAsync(reporte.IdUsuario);
-
-        if (usuario is null)
+        if (!await _context.Usuarios.AnyAsync(u => u.IdUsuario == idUsuarioToken))
         {
-            return NotFound("El usuario indicado no existe.");
+            return NotFound(new { error = "El usuario indicado no existe." });
         }
 
-        reporte.IdReporte = 0;
-        reporte.IdRefugio = null;
-        reporte.Estado = ReporteEstado.Pendiente;
-        reporte.FechaRegistro = DateTime.UtcNow;
-        reporte.Usuario = null;
-        reporte.Refugio = null;
+        // La foto puede venir como archivo subido o, si no, como URL externa (retrocompatible).
+        string? fotoUrl;
+        try
+        {
+            fotoUrl = await _archivos.GuardarAsync(dto.Foto, "reportes") ?? dto.FotoUrl;
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        if (string.IsNullOrWhiteSpace(fotoUrl))
+        {
+            return BadRequest(new { error = "La foto del animal es obligatoria (sube un archivo o envía FotoUrl)." });
+        }
+
+        var reporte = new ReporteAnimal
+        {
+            IdUsuario = idUsuarioToken,
+            Descripcion = dto.Descripcion,
+            FotoUrl = fotoUrl!,
+            Latitud = dto.Latitud,
+            Longitud = dto.Longitud,
+            Estado = ReporteEstado.Pendiente,
+            FechaRegistro = DateTime.UtcNow
+        };
 
         _context.ReportesAnimales.Add(reporte);
 
@@ -190,4 +217,33 @@ public class ReportesAnimalesController : ControllerBase
     /// Convierte grados a radianes.
     /// </summary>
     private static double GradosARadianes(double grados) => grados * Math.PI / 180.0;
+}
+
+/// <summary>
+/// Datos para crear un reporte de animal callejero (HU-14) por multipart/form-data.
+/// La foto se recibe como archivo (campo "Foto"); si no se envía, se admite una URL en "FotoUrl".
+/// </summary>
+public class CrearReporteDto
+{
+    /// <summary>Descripción del animal y su situación.</summary>
+    [Required(ErrorMessage = "La descripción del animal es obligatoria.")]
+    [StringLength(1000)]
+    public string Descripcion { get; set; } = string.Empty;
+
+    /// <summary>Latitud de donde fue visto el animal. Obligatoria.</summary>
+    [Required(ErrorMessage = "La ubicación es obligatoria: indica la latitud del animal reportado.")]
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud de donde fue visto el animal. Obligatoria.</summary>
+    [Required(ErrorMessage = "La ubicación es obligatoria: indica la longitud del animal reportado.")]
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public double? Longitud { get; set; }
+
+    /// <summary>URL externa de la foto (opcional; se ignora si se sube el archivo "Foto").</summary>
+    [StringLength(500)]
+    public string? FotoUrl { get; set; }
+
+    /// <summary>Archivo de la foto del animal (opcional si se envía FotoUrl).</summary>
+    public IFormFile? Foto { get; set; }
 }

@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,13 +24,18 @@ public class ReportesRescateController : ControllerBase
 
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="ReportesRescateController"/>.
     /// </summary>
     /// <param name="context">Contexto de base de datos inyectado.</param>
-    public ReportesRescateController(ApplicationDbContext context)
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    public ReportesRescateController(ApplicationDbContext context, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
     }
 
     /// <summary>
@@ -51,9 +56,7 @@ public class ReportesRescateController : ControllerBase
         [FromQuery] string? estado)
     {
         // [SEGURIDAD] El refugio autenticado se toma del token JWT (se ignora el query del cliente).
-        var refugioIdEfectivo = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
-            ? idRefugioToken
-            : 0;
+        var refugioIdEfectivo = _usuarioActual.ObtenerRefugioId();
 
         if (refugioIdEfectivo <= 0)
         {
@@ -64,7 +67,7 @@ public class ReportesRescateController : ControllerBase
 
         if (refugio is null)
         {
-            return NotFound("El refugio indicado no existe.");
+            return NotFound(new { error = "El refugio indicado no existe." });
         }
 
         IQueryable<ReporteAnimal> consulta = _context.ReportesAnimales.AsQueryable();
@@ -73,7 +76,7 @@ public class ReportesRescateController : ControllerBase
         {
             if (!Enum.TryParse<ReporteEstado>(estado, ignoreCase: true, out var estadoEnum))
             {
-                return BadRequest("Estado no válido. Valores permitidos: Pendiente, Atendido.");
+                return BadRequest(new { error = "Estado no válido. Valores permitidos: Pendiente, Atendido." });
             }
 
             consulta = consulta.Where(r => r.Estado == estadoEnum);
@@ -131,9 +134,7 @@ public class ReportesRescateController : ControllerBase
         [FromBody] ReporteAtencionRequest request)
     {
         // [SEGURIDAD] El refugio que atiende se toma del token JWT (se ignora el IdRefugio del body).
-        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-            ? idRefugioClaim
-            : 0;
+        var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
         if (idRefugioToken <= 0)
         {
@@ -144,19 +145,19 @@ public class ReportesRescateController : ControllerBase
 
         if (reporte is null)
         {
-            return NotFound("El reporte indicado no existe.");
+            return NotFound(new { error = "El reporte indicado no existe." });
         }
 
         if (reporte.Estado == ReporteEstado.Atendido)
         {
-            return BadRequest("El reporte ya fue atendido anteriormente.");
+            return BadRequest(new { error = "El reporte ya fue atendido anteriormente." });
         }
 
         var refugio = await _context.Refugio.FindAsync(idRefugioToken);
 
         if (refugio is null)
         {
-            return NotFound("El refugio indicado no existe.");
+            return NotFound(new { error = "El refugio indicado no existe." });
         }
 
         reporte.Estado = ReporteEstado.Atendido;

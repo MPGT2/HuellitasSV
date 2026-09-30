@@ -1,0 +1,5 @@
+# Contenido subido en runtime (imagenes de mascotas, documentos de refugio,
+# fotos de reportes). No se versiona; la API crea las carpetas y sirve los
+# archivos con app.UseStaticFiles().
+imagenes/*
+!imagenes/.gitkeep

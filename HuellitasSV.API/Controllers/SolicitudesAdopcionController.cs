@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,13 +19,18 @@ public class SolicitudesAdopcionController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="SolicitudesAdopcionController"/>.
     /// </summary>
     /// <param name="context">Contexto de base de datos inyectado.</param>
-    public SolicitudesAdopcionController(ApplicationDbContext context)
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    public SolicitudesAdopcionController(ApplicationDbContext context, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
     }
 
     /// <summary>
@@ -38,9 +43,7 @@ public class SolicitudesAdopcionController : ControllerBase
     [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SolicitudAdopcion>>> GetMisSolicitudes([FromQuery] string? estado)
     {
-        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-            ? idUsuarioClaim
-            : 0;
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
         if (idUsuarioToken <= 0)
             return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
@@ -83,8 +86,8 @@ public class SolicitudesAdopcionController : ControllerBase
         }
 
         // [SEGURIDAD] El usuario solo puede consultar sus propias solicitudes.
-        if (long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioToken)
-            && solicitud.IdUsuario != idUsuarioToken)
+        if (_usuarioActual.UsuarioId is { } idUsuarioPropietario
+            && solicitud.IdUsuario != idUsuarioPropietario)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "La solicitud no le pertenece." });
         }
@@ -108,9 +111,7 @@ public class SolicitudesAdopcionController : ControllerBase
     public async Task<ActionResult<SolicitudAdopcion>> PostSolicitud([FromBody] SolicitudAdopcion solicitud)
     {
         // [SEGURIDAD] El usuario solicitante se toma del token JWT (se ignora el IdUsuario del body).
-        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-            ? idUsuarioClaim
-            : 0;
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
         if (idUsuarioToken <= 0)
         {
@@ -123,7 +124,7 @@ public class SolicitudesAdopcionController : ControllerBase
 
         if (mascota is null)
         {
-            return NotFound("La mascota indicada no existe.");
+            return NotFound(new { error = "La mascota indicada no existe." });
         }
 
         var yaTienePendiente = await _context.SolicitudesAdopcion.AnyAsync(s =>
@@ -133,7 +134,7 @@ public class SolicitudesAdopcionController : ControllerBase
 
         if (yaTienePendiente)
         {
-            return Conflict("Ya existe una solicitud pendiente tuya para esta mascota. Espera la respuesta del refugio.");
+            return Conflict(new { error = "Ya existe una solicitud pendiente tuya para esta mascota. Espera la respuesta del refugio." });
         }
 
         // HU-8: si la mascota ya tiene una adopción aprobada, la nueva solicitud se rechaza automáticamente.

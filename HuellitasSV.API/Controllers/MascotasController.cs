@@ -3,11 +3,11 @@ namespace HuellitasSV.API.Controllers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.DTOs;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +23,11 @@ public class MascotasController : ControllerBase
     /// <summary>Contexto de base de datos inyectado por el contenedor de dependencias.</summary>
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Calificación de los refugios, resuelta en una sola consulta por respuesta.</summary>
+    private readonly ICalificacionService _calificaciones;
+
+    private readonly ICurrentUserService _usuarioActual;
+
     // ============================================================
     // 1) CONSTRUCTOR E INYECCIÓN DE DEPENDENCIAS
     // ============================================================
@@ -31,9 +36,36 @@ public class MascotasController : ControllerBase
     /// Inicializa una nueva instancia del controlador de mascotas.
     /// </summary>
     /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
-    public MascotasController(ApplicationDbContext context)
+    /// <param name="calificaciones">Calificación de los refugios, resuelta en una sola consulta.</param>
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    public MascotasController(ApplicationDbContext context, ICalificacionService calificaciones, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _calificaciones = calificaciones;
+        _usuarioActual = usuarioActual;
+    }
+
+    /// <summary>
+    /// Rellena la calificación de cada refugio de la lista con una única consulta.
+    /// Antes se calculaba dentro de la proyección, lo que disparaba dos consultas
+    /// por mascota. Un refugio sin calificaciones queda con total 0 y promedio null,
+    /// que es lo que ya devolvía el endpoint.
+    /// </summary>
+    /// <param name="mascotas">Mascotas ya proyectadas; se modifican en el sitio.</param>
+    private async Task AplicarCalificaciones(IEnumerable<MascotaRespuestaDto> mascotas)
+    {
+        var lista = mascotas as ICollection<MascotaRespuestaDto> ?? mascotas.ToList();
+        var resumen = await _calificaciones.ObtenerResumenAsync(
+            lista.Where(m => m.Refugio != null).Select(m => m.Refugio!.IdRefugio));
+
+        foreach (var mascota in lista)
+        {
+            if (mascota.Refugio is null)
+                continue;
+
+            mascota.Refugio.TotalCalificaciones = resumen.Total(mascota.Refugio.IdRefugio);
+            mascota.Refugio.PromedioEstrellas = resumen.Promedio(mascota.Refugio.IdRefugio);
+        }
     }
 
     // ============================================================
@@ -72,13 +104,12 @@ public class MascotasController : ControllerBase
                     NombreOrganizacion = m.Refugio.NombreOrganizacion,
                     Departamento = m.Refugio.Departamento,
                     Municipio = m.Refugio.Municipio,
-                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
-                    PromedioEstrellas = _context.Calificaciones
-                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
-                        .Average(c => (double?)c.Estrellas)
+                    Contacto = m.Refugio.Contacto
                 } : null
             })
             .ToListAsync();
+
+        await AplicarCalificaciones(mascotas);
 
         return Ok(new CatalogoRespuestaDto
         {
@@ -122,16 +153,15 @@ public class MascotasController : ControllerBase
                     NombreOrganizacion = m.Refugio.NombreOrganizacion,
                     Departamento = m.Refugio.Departamento,
                     Municipio = m.Refugio.Municipio,
-                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
-                    PromedioEstrellas = _context.Calificaciones
-                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
-                        .Average(c => (double?)c.Estrellas)
+                    Contacto = m.Refugio.Contacto
                 } : null
             })
             .FirstOrDefaultAsync();
 
         if (mascota is null)
             return NotFound(new { error = "Mascota no encontrada." });
+
+        await AplicarCalificaciones(new List<MascotaRespuestaDto> { mascota });
 
         return Ok(mascota);
     }
@@ -258,13 +288,12 @@ public class MascotasController : ControllerBase
                     NombreOrganizacion = m.Refugio.NombreOrganizacion,
                     Departamento = m.Refugio.Departamento,
                     Municipio = m.Refugio.Municipio,
-                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
-                    PromedioEstrellas = _context.Calificaciones
-                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
-                        .Average(c => (double?)c.Estrellas)
+                    Contacto = m.Refugio.Contacto
                 } : null
             })
             .ToListAsync();
+
+        await AplicarCalificaciones(resultados);
 
         return Ok(resultados);
     }
@@ -323,9 +352,7 @@ public class MascotasController : ControllerBase
     public async Task<ActionResult<MascotaRespuestaDto>> RegistrarMascota([FromForm] RegistrarMascotaDto dto, IFormFile? imagen)
     {
         // [SEGURIDAD] El refugio dueño se toma del token JWT (se ignora el IdRefugio del formulario).
-        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-            ? idRefugioClaim
-            : 0;
+        var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
         if (idRefugioToken <= 0)
             return Unauthorized(new { error = "El token no incluye el refugio asociado." });
@@ -410,8 +437,8 @@ public class MascotasController : ControllerBase
             return NotFound(new { error = "Mascota no encontrada." });
 
         // [SEGURIDAD] Solo el refugio dueño puede modificar la mascota.
-        if (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
-            && mascotaExistente.IdRefugio != idRefugioToken)
+        if (_usuarioActual.RefugioId is { } idRefugioDueño
+            && mascotaExistente.IdRefugio != idRefugioDueño)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "La mascota no pertenece a su refugio." });
         }
@@ -474,8 +501,8 @@ public class MascotasController : ControllerBase
             return NotFound(new { error = "Mascota no encontrada." });
 
         // [SEGURIDAD] Solo el refugio dueño puede eliminar la mascota.
-        if (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
-            && mascota.IdRefugio != idRefugioToken)
+        if (_usuarioActual.RefugioId is { } idRefugioDueño
+            && mascota.IdRefugio != idRefugioDueño)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "La mascota no pertenece a su refugio." });
         }
@@ -580,6 +607,9 @@ public sealed class RefugioRespuestaDto
 
     /// <summary>Municipio donde se ubica el refugio.</summary>
     public string Municipio { get; set; } = string.Empty;
+
+    /// <summary>Información de contacto del refugio (teléfono/correo).</summary>
+    public string Contacto { get; set; } = string.Empty;
 
     /// <summary>Promedio de estrellas (1 a 5, un decimal); es null cuando el refugio no tiene calificaciones.</summary>
     public double? PromedioEstrellas

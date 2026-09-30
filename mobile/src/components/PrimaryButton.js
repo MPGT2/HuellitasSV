@@ -17,7 +17,7 @@ export default function PrimaryButton({ title, icon, color, onPress, disabled = 
       disabled={disabled}
       accessibilityState={{ disabled }}
     >
-      {icon ? <Ionicons name={icon} size={18} color="#FFFFFF" /> : null}
+      {icon ? <Ionicons name={icon} size={18} color={colors.onPrimary} /> : null}
       <Text style={styles.title}>{title}</Text>
     </TouchableOpacity>
   );
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',

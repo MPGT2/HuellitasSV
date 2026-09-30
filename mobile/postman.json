@@ -1477,21 +1477,66 @@
         ],
         "summary": "[HU-02] Registra un nuevo refugio: valida los campos obligatorios, que el correo\r\ny el nombre de la organización no existan, crea la cuenta con rol \"Refugio\"\r\ny deja el refugio en estado \"pendiente\" a la espera de aprobación (HU-24).",
         "requestBody": {
-          "description": "Datos del refugio a registrar (JSON).",
+          "description": "Datos del refugio a registrar (multipart/form-data). La documentación es opcional.",
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/RegistroRefugioDto"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegistroRefugioDto"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegistroRefugioDto"
+                "required": [
+                  "Contacto",
+                  "Contrasena",
+                  "Correo",
+                  "Departamento",
+                  "Municipio",
+                  "NombreOrganizacion"
+                ],
+                "type": "object",
+                "properties": {
+                  "NombreOrganizacion": {
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Nombre de la organización del refugio."
+                  },
+                  "Correo": {
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Correo de la cuenta del refugio (debe ser único).",
+                    "format": "email"
+                  },
+                  "Contrasena": {
+                    "minLength": 8,
+                    "type": "string",
+                    "description": "Contraseña de la cuenta del refugio."
+                  },
+                  "Departamento": {
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Departamento donde se ubica el refugio."
+                  },
+                  "Municipio": {
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Municipio donde se ubica el refugio."
+                  },
+                  "Contacto": {
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Información de contacto del refugio."
+                  },
+                  "Documentacion": {
+                    "type": "string",
+                    "description": "Documentación de respaldo (acta o permiso, PDF/JPG), opcional.",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "NombreOrganizacion": { "style": "form" },
+                "Correo": { "style": "form" },
+                "Contrasena": { "style": "form" },
+                "Departamento": { "style": "form" },
+                "Municipio": { "style": "form" },
+                "Contacto": { "style": "form" },
+                "Documentacion": { "style": "form" }
               }
             }
           }
@@ -2006,21 +2051,55 @@
         "summary": "Registra un reporte de perro o gato callejero y notifica a los refugios cercanos a la ubicación.",
         "description": "Reglas de negocio:\r\n- La ubicación (latitud y longitud) es obligatoria: sin ella el sistema bloquea el reporte con 400.\r\n- La foto y la descripción también son obligatorias.\r\n- Al registrarse, el sistema calcula la distancia a cada refugio y notifica a los que estén\r\n  a 5 km o menos de la ubicación reportada.",
         "requestBody": {
-          "description": "Datos del reporte: usuario, descripción, foto y ubicación.",
+          "description": "Datos del reporte (multipart/form-data): la foto es obligatoria, como archivo 'Foto' o URL 'FotoUrl'.",
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/ReporteAnimal"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReporteAnimal"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReporteAnimal"
+                "required": [
+                  "Descripcion",
+                  "Latitud",
+                  "Longitud"
+                ],
+                "type": "object",
+                "properties": {
+                  "Descripcion": {
+                    "maxLength": 1000,
+                    "minLength": 1,
+                    "type": "string",
+                    "description": "Descripción del animal y su situación."
+                  },
+                  "Latitud": {
+                    "maximum": 90,
+                    "minimum": -90,
+                    "type": "number",
+                    "description": "Latitud de donde fue visto el animal. Obligatoria.",
+                    "format": "double"
+                  },
+                  "Longitud": {
+                    "maximum": 180,
+                    "minimum": -180,
+                    "type": "number",
+                    "description": "Longitud de donde fue visto el animal. Obligatoria.",
+                    "format": "double"
+                  },
+                  "FotoUrl": {
+                    "maxLength": 500,
+                    "type": "string",
+                    "description": "URL externa de la foto (opcional; se ignora si se sube el archivo 'Foto')."
+                  },
+                  "Foto": {
+                    "type": "string",
+                    "description": "Archivo de la foto del animal (opcional si se envía FotoUrl).",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "Descripcion": { "style": "form" },
+                "Latitud": { "style": "form" },
+                "Longitud": { "style": "form" },
+                "FotoUrl": { "style": "form" },
+                "Foto": { "style": "form" }
               }
             }
           }

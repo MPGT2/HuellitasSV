@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import RoleTabs from '../components/RoleTabs';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -36,7 +37,7 @@ export default function RegisterScreen({ navigation, route }) {
   const [role, setRole] = useState(route.params?.role ?? 'usuario');
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
-  const [documentName, setDocumentName] = useState('');
+  const [documento, setDocumento] = useState(null);
   const [loading, setLoading] = useState(false);
   const { register, clearError } = useAuth();
 
@@ -98,7 +99,7 @@ export default function RegisterScreen({ navigation, route }) {
           departamento: form.departamento.trim(),
           municipio: form.municipio.trim(),
           contacto: form.contacto.trim(),
-        });
+        }, documento);
       }
       Alert.alert('Éxito', role === 'usuario'
         ? 'Cuenta creada correctamente. Ya puedes iniciar sesión.'
@@ -114,8 +115,14 @@ export default function RegisterScreen({ navigation, route }) {
     }
   };
 
-  const pickDocument = () => {
-    // TODO: integrar expo-document-picker cuando exista el backend
+  const pickDocumento = async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/*'],
+      copyToCacheDirectory: true,
+    });
+    if (!res.canceled) {
+      setDocumento(res.assets[0]);
+    }
   };
 
   return (
@@ -198,13 +205,18 @@ export default function RegisterScreen({ navigation, route }) {
             </Text>
             <TouchableOpacity
               style={styles.uploadBox}
-              onPress={pickDocument}
+              onPress={pickDocumento}
               activeOpacity={0.7}
             >
-              <Ionicons name="document-outline" size={26} color="#94A3B8" />
+              <Ionicons name="document-outline" size={26} color={colors.placeholder} />
               <Text style={styles.uploadText}>
-                {documentName || 'Toca para subir acta o permiso'}
+                {documento?.name || 'Toca para subir acta o permiso'}
               </Text>
+              {documento ? (
+                <TouchableOpacity onPress={() => setDocumento(null)}>
+                  <Text style={styles.uploadClear}>Quitar archivo</Text>
+                </TouchableOpacity>
+              ) : null}
             </TouchableOpacity>
 
             <FormField
@@ -312,7 +324,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -330,14 +342,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   banner: {
-    backgroundColor: '#FEF9E7',
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
   },
   bannerText: {
     fontSize: 13,
-    color: '#B45309',
+    color: colors.warningText,
     lineHeight: 19,
   },
   label: {
@@ -348,11 +360,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   uploadBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 28,
@@ -362,6 +374,12 @@ const styles = StyleSheet.create({
   uploadText: {
     fontSize: 13,
     color: colors.muted,
+  },
+  uploadClear: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    marginTop: 2,
   },
   terms: {
     fontSize: 13,

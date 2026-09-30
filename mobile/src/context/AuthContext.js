@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const register = useCallback(async (role, data) => {
+  const register = useCallback(async (role, data, documento) => {
     setError(null);
     try {
       let response;
@@ -48,7 +48,8 @@ export function AuthProvider({ children }) {
           data.contrasena,
           data.departamento,
           data.municipio,
-          data.contacto
+          data.contacto,
+          documento
         );
       } else {
         throw new Error('Rol no válido');

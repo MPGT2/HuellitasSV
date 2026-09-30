@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,13 +19,18 @@ public class NotificacionesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="NotificacionesController"/>.
     /// </summary>
     /// <param name="context">Contexto de base de datos inyectado.</param>
-    public NotificacionesController(ApplicationDbContext context)
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    public NotificacionesController(ApplicationDbContext context, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
     }
 
     /// <summary>
@@ -40,11 +45,11 @@ public class NotificacionesController : ControllerBase
         IQueryable<Notificacion> consulta = _context.Notificaciones.AsQueryable();
 
         // [SEGURIDAD] El destinatario se toma del token JWT: refugio o usuario según el rol.
-        if (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugio))
+        if (_usuarioActual.RefugioId is { } idRefugio)
         {
             consulta = consulta.Where(n => n.IdRefugio == idRefugio);
         }
-        else if (long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuario))
+        else if (_usuarioActual.UsuarioId is { } idUsuario)
         {
             consulta = consulta.Where(n => n.IdUsuario == idUsuario);
         }
@@ -82,10 +87,8 @@ public class NotificacionesController : ControllerBase
 
         // [SEGURIDAD] Solo el destinatario de la notificación puede marcarla como leída.
         var esPropietaria =
-            (long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugio)
-                && notificacion.IdRefugio == idRefugio)
-            || (long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuario)
-                && notificacion.IdUsuario == idUsuario);
+            (_usuarioActual.RefugioId is { } idRefugio && notificacion.IdRefugio == idRefugio)
+            || (_usuarioActual.UsuarioId is { } idUsuario && notificacion.IdUsuario == idUsuario);
 
         if (!esPropietaria)
         {

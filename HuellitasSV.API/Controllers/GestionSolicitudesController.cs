@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,13 +20,18 @@ public class GestionSolicitudesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="GestionSolicitudesController"/>.
     /// </summary>
     /// <param name="context">Contexto de base de datos inyectado.</param>
-    public GestionSolicitudesController(ApplicationDbContext context)
+    /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+    public GestionSolicitudesController(ApplicationDbContext context, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
     }
 
     /// <summary>
@@ -44,9 +49,7 @@ public class GestionSolicitudesController : ControllerBase
         [FromQuery] string? estado)
     {
         // [SEGURIDAD] El refugio autenticado se toma del token JWT (no del query del cliente).
-        var refugioIdEfectivo = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioToken)
-            ? idRefugioToken
-            : 0;
+        var refugioIdEfectivo = _usuarioActual.ObtenerRefugioId();
 
         if (refugioIdEfectivo <= 0)
         {
@@ -56,7 +59,7 @@ public class GestionSolicitudesController : ControllerBase
         var refugioExiste = await _context.Refugio.AnyAsync(r => r.IdRefugio == refugioIdEfectivo);
         if (!refugioExiste)
         {
-            return NotFound("El refugio indicado no existe.");
+            return NotFound(new { error = "El refugio indicado no existe." });
         }
 
         IQueryable<SolicitudAdopcion> consulta = _context.SolicitudesAdopcion
@@ -68,7 +71,7 @@ public class GestionSolicitudesController : ControllerBase
         {
             if (!Enum.TryParse<SolicitudEstado>(estado, ignoreCase: true, out var estadoEnum))
             {
-                return BadRequest("Estado no válido. Valores permitidos: Pendiente, Aprobada, Rechazada.");
+                return BadRequest(new { error = "Estado no válido. Valores permitidos: Pendiente, Aprobada, Rechazada." });
             }
 
             consulta = consulta.Where(s => s.Estado == estadoEnum);
@@ -144,9 +147,7 @@ public class GestionSolicitudesController : ControllerBase
         bool aprobar)
     {
         // [SEGURIDAD] El refugio que decide se toma del token JWT (se ignora el IdRefugio del body).
-        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-            ? idRefugioClaim
-            : 0;
+        var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
         if (idRefugioToken <= 0)
         {
@@ -157,26 +158,26 @@ public class GestionSolicitudesController : ControllerBase
 
         if (solicitud is null)
         {
-            return NotFound("La solicitud indicada no existe.");
+            return NotFound(new { error = "La solicitud indicada no existe." });
         }
 
         if (solicitud.Estado != SolicitudEstado.Pendiente)
         {
-            return BadRequest($"Solo se pueden decidir solicitudes pendientes; el estado actual es \"{solicitud.Estado}\".");
+            return BadRequest(new { error = $"Solo se pueden decidir solicitudes pendientes; el estado actual es \"{solicitud.Estado}\"." });
         }
 
         var mascota = await _context.Mascota.FindAsync(solicitud.IdMascota);
 
         if (mascota is null)
         {
-            return NotFound("La mascota de la solicitud ya no existe.");
+            return NotFound(new { error = "La mascota de la solicitud ya no existe." });
         }
 
         if (mascota.IdRefugio != idRefugioToken)
         {
             return StatusCode(
                 StatusCodes.Status403Forbidden,
-                "La mascota no pertenece a su refugio; no puede decidir sobre la solicitud.");
+                new { error = "La mascota no pertenece a su refugio; no puede decidir sobre la solicitud." });
         }
 
         if (aprobar)
@@ -230,8 +231,10 @@ public class GestionSolicitudesController : ControllerBase
 /// <param name="IdRefugio">Identificador del refugio que toma la decisión (debe ser dueño de la mascota).</param>
 /// <param name="ComentarioDecision">Comentario opcional para el solicitante.</param>
 public record SolicitudDecisionRequest(
-    [Range(1L, long.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
-    long IdRefugio,
+    // El refugio que decide se toma SIEMPRE del token JWT. Este campo se mantiene
+    // opcional por retrocompatibilidad: exigirlo con [Range] hacia fallar a los
+    // clientes que solo envian el comentario.
+    long? IdRefugio,
 
     [StringLength(500, ErrorMessage = "El comentario no puede exceder 500 caracteres.")]
     string? ComentarioDecision);

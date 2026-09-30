@@ -1,7 +1,6 @@
 namespace HuellitasSV.API.Controllers;
 
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.DTOs;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 
 /// <summary>
 /// Controlador de necesidades urgentes de insumos publicadas por los refugios.
@@ -21,12 +21,16 @@ public class NecesidadesDonacionController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
+    /// <summary>Claims del token ya convertidos.</summary>
+    private readonly ICurrentUserService _usuarioActual;
+
     /// <summary>
     /// Inicializa el controlador con el contexto de base de datos.
     /// </summary>
-    public NecesidadesDonacionController(ApplicationDbContext context)
+    public NecesidadesDonacionController(ApplicationDbContext context, ICurrentUserService usuarioActual)
     {
         _context = context;
+        _usuarioActual = usuarioActual;
     }
 
     /// <summary>
@@ -72,9 +76,7 @@ public class NecesidadesDonacionController : ControllerBase
     public async Task<IActionResult> PublicarNecesidad([FromBody] PublicarNecesidadDto dto)
     {
         // [SEGURIDAD] El refugio se toma del token JWT (se ignora el IdRefugio del body).
-        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-            ? idRefugioClaim
-            : 0;
+        var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
         if (idRefugioToken <= 0)
             return Unauthorized(new { error = "El token no incluye el refugio asociado." });
@@ -124,7 +126,7 @@ public class NecesidadesDonacionController : ControllerBase
     public async Task<IActionResult> RegistrarAporte(long id, [FromBody] RegistrarAporteDto dto)
     {
         // [SEGURIDAD] Solo usuarios autenticados pueden aportar (el aporte queda asociado a su perfil vía token).
-        if (!long.TryParse(User.FindFirstValue("idUsuario"), out _))
+        if (_usuarioActual.UsuarioId is null)
             return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
 
         var necesidad = await _context.NecesidadesDonacion.FindAsync(id);
@@ -174,9 +176,7 @@ public class NecesidadesDonacionController : ControllerBase
     public async Task<IActionResult> EliminarNecesidad(long id)
     {
         // [SEGURIDAD] El refugio se toma del token JWT, igual que en PublicarNecesidad.
-        var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-            ? idRefugioClaim
-            : 0;
+        var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
         if (idRefugioToken <= 0)
             return Unauthorized(new { error = "El token no incluye el refugio asociado." });

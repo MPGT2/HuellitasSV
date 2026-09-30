@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { api } from '../services/api';
+import { resolveImageUrl } from '../config/env';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import FormField from '../components/FormField';
@@ -23,7 +25,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s\-\+\(\)]{8,}$/;
 
 export default function AdoptionRequestScreen() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     nombreContacto: '',
@@ -38,12 +40,12 @@ export default function AdoptionRequestScreen() {
 
   const fetchUserData = async () => {
     try {
-      if (user.idUsuario) {
+      if (user?.idUsuario) {
         const data = await api.getUsuarioPerfil();
         setForm(prev => ({
           ...prev,
-          nombreContacto: data.nombre,
-          correoContacto: data.correo,
+          nombreContacto: data?.nombre ?? prev.nombreContacto,
+          correoContacto: data?.correo ?? prev.correoContacto,
         }));
       }
     } catch (err) {
@@ -52,6 +54,12 @@ export default function AdoptionRequestScreen() {
       setLoading(false);
     }
   };
+
+  // Precarga el contacto desde el perfil del usuario. Antes la funcion existia
+  // pero nunca se llamaba, asi que el formulario aparecia vacio.
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -123,7 +131,7 @@ export default function AdoptionRequestScreen() {
           {pet && (
             <View style={styles.petPreview}>
               <Image
-                source={{ uri: pet.imagenUrl || 'https://via.placeholder.com/100' }}
+                source={{ uri: resolveImageUrl(pet.imagenUrl) || 'https://via.placeholder.com/100' }}
                 style={styles.petImage}
               />
               <View style={styles.petInfo}>
@@ -198,9 +206,6 @@ export default function AdoptionRequestScreen() {
   );
 }
 
-// Need to import Image
-import { Image } from 'react-native';
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -270,13 +275,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     padding: 14,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.infoBg,
     borderRadius: 10,
     marginBottom: 20,
   },
   infoText: {
     fontSize: 13,
-    color: '#1E40AF',
+    color: colors.infoText,
     lineHeight: 18,
     flex: 1,
   },

@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 
 namespace HuellitasSV.API.Controllers
 {
@@ -22,18 +22,30 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Servicio de emisión de tokens JWT (seguridad).</summary>
         private readonly Security.JwtTokenService _tokenService;
 
-        /// <summary>Componente de hash de contraseñas (PBKDF2, sin estado, seguro en hilos).</summary>
-        private static readonly PasswordHasher<Cuenta> _hasher = new();
+        private readonly IPasswordService _passwords;
+        private readonly IAccountStatePolicy _estadoCuenta;
+        private readonly ICurrentUserService _usuarioActual;
 
         /// <summary>
-        /// Inicializa el controlador con el contexto de base de datos y el servicio de tokens inyectados.
+        /// Inicializa el controlador con el contexto de base de datos y los servicios compartidos.
         /// </summary>
         /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
         /// <param name="tokenService">Servicio de emisión de tokens JWT.</param>
-        public UsuariosController(ApplicationDbContext context, Security.JwtTokenService tokenService)
+        /// <param name="passwords">Servicio compartido de cifrado y verificación de contraseñas.</param>
+        /// <param name="estadoCuenta">Regla compartida de estado de cuenta.</param>
+        /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+        public UsuariosController(
+            ApplicationDbContext context,
+            Security.JwtTokenService tokenService,
+            IPasswordService passwords,
+            IAccountStatePolicy estadoCuenta,
+            ICurrentUserService usuarioActual)
         {
             _context = context;
             _tokenService = tokenService;
+            _passwords = passwords;
+            _estadoCuenta = estadoCuenta;
+            _usuarioActual = usuarioActual;
         }
 
         // ============================================================
@@ -70,7 +82,7 @@ namespace HuellitasSV.API.Controllers
             var cuenta = new Cuenta
             {
                 Correo = correo,
-                Contrasena = _hasher.HashPassword(null!, dto.Contrasena),
+                Contrasena = _passwords.Hash(dto.Contrasena),
                 Rol = "Usuario",
                 Estado = "activo"
             };
@@ -119,18 +131,17 @@ namespace HuellitasSV.API.Controllers
 
             // Regla de negocio HU-01: error genérico sin revelar si falló el correo o la contraseña.
             var cuenta = await _context.Cuenta.FirstOrDefaultAsync(c => c.Correo == correo);
-            if (cuenta == null || cuenta.Rol != "Usuario" || !await VerificarContrasenaAsync(cuenta, dto.Contrasena))
+            if (cuenta == null || cuenta.Rol != "Usuario" || !await _passwords.VerificarAsync(cuenta, dto.Contrasena))
             {
                 return Unauthorized(new { error = "Credenciales incorrectas." });
             }
 
             // Regla de negocio HU-01: cuentas inactivas o bloqueadas no pueden entrar; se informa el motivo.
-            if (cuenta.Estado == "inactivo" || cuenta.Estado == "bloqueado")
+            if (_estadoCuenta.EstaBloqueada(cuenta))
             {
-                var motivo = cuenta.Estado == "inactivo" ? "inactiva" : "bloqueada";
                 return StatusCode(StatusCodes.Status403Forbidden, new
                 {
-                    error = $"Acceso denegado: su cuenta está {motivo}. Contacte al administrador."
+                    error = _estadoCuenta.ConstruirMensajeBloqueo(cuenta)
                 });
             }
 
@@ -176,9 +187,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetPerfil()
         {
-            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-                ? idUsuarioClaim
-                : 0;
+            var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
             if (idUsuarioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
@@ -215,9 +224,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> ActualizarPerfil(ActualizarPerfilUsuarioDto dto)
         {
-            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-                ? idUsuarioClaim
-                : 0;
+            var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
             if (idUsuarioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
@@ -251,7 +258,7 @@ namespace HuellitasSV.API.Controllers
                 if (dto.Contrasena.Length < 8)
                     return BadRequest(new { error = "La contraseña debe tener al menos 8 caracteres." });
 
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, dto.Contrasena);
+                cuenta.Contrasena = _passwords.Hash(cuenta, dto.Contrasena);
             }
 
             await _context.SaveChangesAsync();
@@ -279,9 +286,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> EliminarPerfil()
         {
-            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
-                ? idUsuarioClaim
-                : 0;
+            var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
 
             if (idUsuarioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
@@ -305,48 +310,6 @@ namespace HuellitasSV.API.Controllers
         // ============================================================
         // 4) REGLAS DE NEGOCIO PRIVADAS COMPARTIDAS
         // ============================================================
-
-        /// <summary>
-        /// Verifica una contraseña contra el hash almacenado (PBKDF2). Da soporte de
-        /// migración progresiva: las cuentas creadas antes del hashing (contraseña en
-        /// texto plano) se convierten automáticamente a hash al iniciar sesión.
-        /// </summary>
-        /// <param name="cuenta">Cuenta cuya contraseña se verifica.</param>
-        /// <param name="contrasena">Contraseña proporcionada por el cliente.</param>
-        /// <returns>true si la contraseña es correcta; false en caso contrario.</returns>
-        private async Task<bool> VerificarContrasenaAsync(Cuenta cuenta, string contrasena)
-        {
-            PasswordVerificationResult resultado;
-            try
-            {
-                resultado = _hasher.VerifyHashedPassword(cuenta, cuenta.Contrasena, contrasena);
-            }
-            catch (FormatException)
-            {
-                // El valor almacenado no es un hash (cuenta legada en texto plano).
-                resultado = PasswordVerificationResult.Failed;
-            }
-
-            if (resultado == PasswordVerificationResult.Success)
-                return true;
-
-            if (resultado == PasswordVerificationResult.SuccessRehashNeeded)
-            {
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, contrasena);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-
-            // Cuenta legada: comparación directa con actualización automática a hash.
-            if (cuenta.Contrasena == contrasena)
-            {
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, contrasena);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-
-            return false;
-        }
     }
 
     // ============================================================

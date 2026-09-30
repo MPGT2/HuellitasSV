@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/spacing';
 import { useAuth } from '../context/AuthContext';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -106,6 +107,14 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.dividerLink}>Regístrate</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.banner}>
+          <Ionicons name="business-outline" size={18} color={colors.warningText} />
+          <Text style={styles.bannerText}>
+            ¿Tenés un refugio? También podés entrar desde acá cuando tu cuenta
+            sea aprobada.
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -118,21 +127,21 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 64,
+    paddingHorizontal: spacing.page,
+    paddingTop: spacing.pageTop,
+    paddingBottom: spacing.pageBottom,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.lg,
     marginBottom: 28,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    borderRadius: radius.circle,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -153,16 +162,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
-    gap: 6,
+    marginTop: spacing.xxl,
+    gap: spacing.xs,
   },
   dividerText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.muted,
+    lineHeight: 20,
   },
   dividerLink: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.primary,
     fontWeight: '600',
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.xxxl,
+  },
+  bannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.warningText,
+    lineHeight: 19,
   },
 });

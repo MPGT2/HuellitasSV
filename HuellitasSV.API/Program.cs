@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Security;
+using HuellitasSV.API.Services;
 using HuellitasSV.API.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -83,9 +84,22 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Acceso al HttpContext para resolver los claims del token una sola vez (ICurrentUserService).
+builder.Services.AddHttpContextAccessor();
+
 // [SEGURIDAD] Autenticación con JWT: los endpoints de gestión exigen un token firmado
 // emitido por AuthController/UsuariosController/RefugiosController con el rol de la cuenta.
 builder.Services.AddScoped<JwtTokenService>();
+
+// Capa de servicios: lógica compartida entre controladores.
+// Scoped porque todos usan ApplicationDbContext, que también es scoped.
+builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAccountStatePolicy, AccountStatePolicy>();
+builder.Services.AddScoped<ICalificacionService, CalificacionService>();
+
+// Almacenamiento de archivos subidos (imágenes de mascotas/reportes y documentos de refugio).
+builder.Services.AddScoped<IArchivoService, ArchivoService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
+using HuellitasSV.API.Services;
 
 namespace HuellitasSV.API.Controllers
 {
@@ -19,26 +19,80 @@ namespace HuellitasSV.API.Controllers
     {
         private readonly ApplicationDbContext _context;
 
-        /// <summary>Componente de hash de contraseñas (PBKDF2, sin estado, seguro en hilos).</summary>
-        private static readonly PasswordHasher<Cuenta> _hasher = new();
-
         /// <summary>Servicio de emisión de tokens JWT (seguridad).</summary>
         private readonly Security.JwtTokenService _tokenService;
 
+        private readonly IPasswordService _passwords;
+        private readonly IAccountStatePolicy _estadoCuenta;
+        private readonly ICurrentUserService _usuarioActual;
+        private readonly IArchivoService _archivos;
+        private readonly ICalificacionService _calificaciones;
+
         /// <summary>
-        /// Inicializa el controlador con el contexto de base de datos y el servicio de tokens inyectados.
+        /// Inicializa el controlador con el contexto de base de datos y los servicios compartidos.
         /// </summary>
         /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
         /// <param name="tokenService">Servicio de emisión de tokens JWT.</param>
-        public RefugiosController(ApplicationDbContext context, Security.JwtTokenService tokenService)
+        /// <param name="passwords">Servicio compartido de cifrado y verificación de contraseñas.</param>
+        /// <param name="estadoCuenta">Regla compartida de estado de cuenta.</param>
+        /// <param name="usuarioActual">Claims del token ya convertidos.</param>
+        /// <param name="archivos">Servicio de guardado de archivos (documentación del refugio).</param>
+        /// <param name="calificaciones">Resumen de calificaciones para el perfil público.</param>
+        public RefugiosController(
+            ApplicationDbContext context,
+            Security.JwtTokenService tokenService,
+            IPasswordService passwords,
+            IAccountStatePolicy estadoCuenta,
+            ICurrentUserService usuarioActual,
+            IArchivoService archivos,
+            ICalificacionService calificaciones)
         {
             _context = context;
             _tokenService = tokenService;
+            _passwords = passwords;
+            _estadoCuenta = estadoCuenta;
+            _usuarioActual = usuarioActual;
+            _archivos = archivos;
+            _calificaciones = calificaciones;
         }
 
         // ============================================================
         // 1) MÉTODOS [HttpGet]
         // ============================================================
+
+        /// <summary>
+        /// [HU-02] Perfil público de un refugio: nombre, ubicación, contacto y calificación.
+        /// Alimenta la vista del refugio en la app (no requiere autenticación).
+        /// </summary>
+        /// <param name="id">Identificador del refugio.</param>
+        /// <returns>Datos públicos del refugio.</returns>
+        /// <response code="200">Refugio encontrado.</response>
+        /// <response code="404">Refugio no encontrado.</response>
+        [HttpGet("{id:long}")]
+        [ProducesResponseType(typeof(RefugioRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<RefugioRespuestaDto>> GetRefugio(long id)
+        {
+            var refugio = await _context.Refugio
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.IdRefugio == id);
+
+            if (refugio is null)
+                return NotFound(new { error = "Refugio no encontrado." });
+
+            var resumen = await _calificaciones.ObtenerResumenAsync(new[] { refugio.IdRefugio });
+
+            return Ok(new RefugioRespuestaDto
+            {
+                IdRefugio = refugio.IdRefugio,
+                NombreOrganizacion = refugio.NombreOrganizacion,
+                Departamento = refugio.Departamento,
+                Municipio = refugio.Municipio,
+                Contacto = refugio.Contacto,
+                TotalCalificaciones = resumen.Total(refugio.IdRefugio),
+                PromedioEstrellas = resumen.Promedio(refugio.IdRefugio)
+            });
+        }
 
         /// <summary>
         /// [HU-09] Devuelve las mascotas de un refugio, con filtro opcional por estado.
@@ -118,9 +172,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetPerfil()
         {
-            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-                ? idRefugioClaim
-                : 0;
+            var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
             if (idRefugioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el refugio asociado." });
@@ -182,9 +234,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> ActualizarPerfil(ActualizarPerfilRefugioDto dto)
         {
-            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-                ? idRefugioClaim
-                : 0;
+            var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
             if (idRefugioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el refugio asociado." });
@@ -248,7 +298,7 @@ namespace HuellitasSV.API.Controllers
                 if (dto.Contrasena.Length < 8)
                     return BadRequest(new { error = "La contraseña debe tener al menos 8 caracteres." });
 
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, dto.Contrasena);
+                cuenta.Contrasena = _passwords.Hash(cuenta, dto.Contrasena);
             }
 
             await _context.SaveChangesAsync();
@@ -281,9 +331,7 @@ namespace HuellitasSV.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> EliminarPerfil()
         {
-            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
-                ? idRefugioClaim
-                : 0;
+            var idRefugioToken = _usuarioActual.ObtenerRefugioId();
 
             if (idRefugioToken <= 0)
                 return Unauthorized(new { error = "El token no incluye el refugio asociado." });
@@ -313,16 +361,17 @@ namespace HuellitasSV.API.Controllers
         /// y el nombre de la organización no existan, crea la cuenta con rol "Refugio"
         /// y deja el refugio en estado "pendiente" a la espera de aprobación (HU-24).
         /// </summary>
-        /// <param name="dto">Datos del refugio a registrar (JSON).</param>
+        /// <param name="dto">Datos del refugio a registrar (multipart/form-data; incluye el documento opcional).</param>
         /// <returns>Confirmación del registro con el identificador generado.</returns>
         /// <response code="201">Refugio registrado correctamente (queda pendiente de aprobación).</response>
-        /// <response code="400">Si los campos obligatorios no son válidos.</response>
+        /// <response code="400">Si los campos obligatorios no son válidos o el documento no cumple las reglas.</response>
         /// <response code="409">Si el correo o el nombre de la organización ya están registrados.</response>
         [HttpPost("registro")]
+        [Consumes("multipart/form-data")]
         [ProducesResponseType(typeof(ActionResult), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult> RegistrarRefugio(RegistroRefugioDto dto)
+        public async Task<ActionResult> RegistrarRefugio([FromForm] RegistroRefugioDto dto)
         {
             var correo = dto.Correo.Trim().ToLowerInvariant();
             var nombre = dto.NombreOrganizacion.Trim();
@@ -341,11 +390,22 @@ namespace HuellitasSV.API.Controllers
                 return Conflict(new { error = "El nombre de la organización ya está registrado." });
             }
 
+            // Documentación de respaldo (opcional): se valida y guarda antes de persistir el refugio.
+            string? documentacionUrl;
+            try
+            {
+                documentacionUrl = await _archivos.GuardarAsync(dto.Documentacion, "refugios");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+
             // HU-02: se crea la cuenta con rol "Refugio" y estado "pendiente" (contraseña con hash PBKDF2).
             var cuenta = new Cuenta
             {
                 Correo = correo,
-                Contrasena = _hasher.HashPassword(null!, dto.Contrasena),
+                Contrasena = _passwords.Hash(dto.Contrasena),
                 Rol = "Refugio",
                 Estado = "pendiente"
             };
@@ -360,6 +420,7 @@ namespace HuellitasSV.API.Controllers
                 Departamento = dto.Departamento.Trim(),
                 Municipio = dto.Municipio.Trim(),
                 Contacto = dto.Contacto.Trim(),
+                DocumentacionUrl = documentacionUrl,
                 EstadoAprobacion = "pendiente"
             };
             _context.Refugio.Add(refugio);
@@ -395,9 +456,20 @@ namespace HuellitasSV.API.Controllers
             var correo = dto.Correo.Trim().ToLowerInvariant();
 
             var cuenta = await _context.Cuenta.FirstOrDefaultAsync(c => c.Correo == correo);
-            if (cuenta == null || cuenta.Rol != "Refugio" || !await VerificarContrasenaAsync(cuenta, dto.Contrasena))
+            if (cuenta == null || cuenta.Rol != "Refugio" || !await _passwords.VerificarAsync(cuenta, dto.Contrasena))
             {
                 return Unauthorized(new { error = "Credenciales incorrectas." });
+            }
+
+            // Una cuenta desactivada o bloqueada no entra, aunque el refugio siga aprobado.
+            // Esta comprobación faltaba y la hacía el login unificado; sin ella, un refugio
+            // desactivado seguía entrando por este endpoint heredado.
+            if (_estadoCuenta.EstaBloqueada(cuenta))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = _estadoCuenta.ConstruirMensajeBloqueo(cuenta)
+                });
             }
 
             var refugio = await _context.Refugio.FirstOrDefaultAsync(r => r.IdCuenta == cuenta.IdCuenta);
@@ -482,48 +554,6 @@ namespace HuellitasSV.API.Controllers
         // ============================================================
         // REGLA DE NEGOCIO PRIVADA COMPARTIDA
         // ============================================================
-
-        /// <summary>
-        /// Verifica una contraseña contra el hash almacenado (PBKDF2). Da soporte de
-        /// migración progresiva: las cuentas creadas antes del hashing (contraseña en
-        /// texto plano) se convierten automáticamente a hash al iniciar sesión.
-        /// </summary>
-        /// <param name="cuenta">Cuenta cuya contraseña se verifica.</param>
-        /// <param name="contrasena">Contraseña proporcionada por el refugio.</param>
-        /// <returns>true si la contraseña es correcta; false en caso contrario.</returns>
-        private async Task<bool> VerificarContrasenaAsync(Cuenta cuenta, string contrasena)
-        {
-            PasswordVerificationResult resultado;
-            try
-            {
-                resultado = _hasher.VerifyHashedPassword(cuenta, cuenta.Contrasena, contrasena);
-            }
-            catch (FormatException)
-            {
-                // El valor almacenado no es un hash (cuenta legada en texto plano).
-                resultado = PasswordVerificationResult.Failed;
-            }
-
-            if (resultado == PasswordVerificationResult.Success)
-                return true;
-
-            if (resultado == PasswordVerificationResult.SuccessRehashNeeded)
-            {
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, contrasena);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-
-            // Cuenta legada: comparación directa con actualización automática a hash.
-            if (cuenta.Contrasena == contrasena)
-            {
-                cuenta.Contrasena = _hasher.HashPassword(cuenta, contrasena);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-
-            return false;
-        }
     }
 
     // ============================================================
@@ -560,6 +590,12 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Información de contacto del refugio.</summary>
         [Required]
         public string Contacto { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Documentación de respaldo del refugio (acta o permiso, PDF/JPG), opcional.
+        /// Se sube como archivo dentro del mismo multipart/form-data bajo el campo "Documentacion".
+        /// </summary>
+        public IFormFile? Documentacion { get; set; }
     }
 
     /// <summary>
