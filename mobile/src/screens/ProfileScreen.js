@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -68,6 +68,15 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
+
+  // fetchProfile estaba definida pero nunca se llamaba, asi que el formulario
+  // aparecia vacio al abrir la pantalla. Se dispara al montar y cada vez que
+  // el rol cambia, que es lo unico que decide a que endpoint preguntar.
+  useEffect(() => {
+    if (isUsuario || isRefugio) {
+      fetchProfile();
+    }
+  }, [isUsuario, isRefugio]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));

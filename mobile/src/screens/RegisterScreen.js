@@ -15,7 +15,6 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,7 +39,6 @@ export default function RegisterScreen({ navigation, route }) {
   const [documentName, setDocumentName] = useState('');
   const [loading, setLoading] = useState(false);
   const { register, clearError } = useAuth();
-  const nav = useNavigation();
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -106,7 +104,9 @@ export default function RegisterScreen({ navigation, route }) {
         ? 'Cuenta creada correctamente. Ya puedes iniciar sesión.'
         : 'Solicitud de registro enviada. El equipo admin la revisará en 1-2 días hábiles.'
       );
-      nav.navigate('Login', { role });
+      // Sin parametro de rol: el login es unico y la API deduce el rol desde
+      // la cuenta. RoleSelectionScreen ya no lo manda y LoginScreen no lo lee.
+      navigation.navigate('Login');
     } catch (err) {
       Alert.alert('Error', err.message);
     } finally {
