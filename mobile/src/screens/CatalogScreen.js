@@ -272,6 +272,12 @@ export default function CatalogScreen() {
           </Text>
         </View>
         <TouchableOpacity
+          style={styles.reportButton}
+          onPress={() => nav.navigate('ReporteForm')}
+        >
+          <Ionicons name="megaphone-outline" size={20} color={colors.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.filterButton, activos > 0 && styles.filterButtonActive]}
           onPress={() => setShowFilters(true)}
         >
@@ -554,6 +560,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: 10,
     paddingHorizontal: spacing.xl,
+  },
+  reportButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    width: 40,
+    height: 40,
+    marginRight: spacing.sm,
   },
   filterButtonActive: {
     backgroundColor: colors.chipActive,

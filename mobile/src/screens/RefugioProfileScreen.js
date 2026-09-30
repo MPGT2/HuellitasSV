@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,6 +16,7 @@ import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
 import { resolveImageUrl } from '../config/env';
+import { useAuth } from '../context/AuthContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function RefugioProfileScreen() {
@@ -21,27 +24,38 @@ export default function RefugioProfileScreen() {
   const route = useRoute();
   const refugioParam = route.params?.refugio;
   const idRefugio = refugioParam?.idRefugio ?? route.params?.idRefugio;
+  const { isUsuario } = useAuth();
 
   const [refugio, setRefugio] = useState(refugioParam ?? null);
   const [mascotas, setMascotas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [miEstrellas, setMiEstrellas] = useState(0);
+  const [miComentario, setMiComentario] = useState('');
+  const [enviandoCalif, setEnviandoCalif] = useState(false);
 
   useEffect(() => {
     let activo = true;
 
     const cargar = async () => {
       try {
-        const [perfil, pets] = await Promise.all([
+        const [perfil, pets, miCalif] = await Promise.all([
           idRefugio
             ? api.getRefugioById(idRefugio).catch(() => null)
             : Promise.resolve(null),
           idRefugio
             ? api.getMascotasByRefugio(idRefugio, 'disponible').catch(() => [])
             : Promise.resolve([]),
+          idRefugio && isUsuario
+            ? api.getMiCalificacion(idRefugio).catch(() => null)
+            : Promise.resolve(null),
         ]);
         if (!activo) return;
         if (perfil) setRefugio((prev) => ({ ...prev, ...perfil }));
         setMascotas(Array.isArray(pets) ? pets : []);
+        if (miCalif) {
+          setMiEstrellas(miCalif.estrellas || 0);
+          setMiComentario(miCalif.comentario || '');
+        }
       } finally {
         if (activo) setLoading(false);
       }
@@ -51,7 +65,28 @@ export default function RefugioProfileScreen() {
     return () => {
       activo = false;
     };
-  }, [idRefugio]);
+  }, [idRefugio, isUsuario]);
+
+  const enviarCalificacion = async () => {
+    if (!miEstrellas) {
+      Alert.alert('Falta la calificación', 'Elige de 1 a 5 estrellas.');
+      return;
+    }
+    setEnviandoCalif(true);
+    try {
+      const r = await api.calificarRefugio(idRefugio, miEstrellas, miComentario);
+      setRefugio((prev) => ({
+        ...prev,
+        promedioEstrellas: r.promedioEstrellas,
+        totalCalificaciones: r.totalCalificaciones,
+      }));
+      Alert.alert('Gracias', 'Tu calificación fue registrada.');
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setEnviandoCalif(false);
+    }
+  };
 
   const renderMascota = ({ item }) => (
     <TouchableOpacity
@@ -126,6 +161,42 @@ export default function RefugioProfileScreen() {
         <View style={styles.contactRow}>
           <Ionicons name="call-outline" size={16} color={colors.primary} />
           <Text style={styles.contactText}>{refugio.contacto}</Text>
+        </View>
+      ) : null}
+
+      {isUsuario && idRefugio ? (
+        <View style={styles.calificarBox}>
+          <Text style={styles.calificarTitle}>
+            {miEstrellas ? 'Tu calificación' : 'Califica este refugio'}
+          </Text>
+          <View style={styles.starsPick}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <TouchableOpacity key={n} onPress={() => setMiEstrellas(n)}>
+                <Ionicons
+                  name={n <= miEstrellas ? 'star' : 'star-outline'}
+                  size={30}
+                  color={colors.warningStrong}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            style={styles.calificarInput}
+            placeholder="Comentario (opcional)"
+            placeholderTextColor={colors.placeholder}
+            value={miComentario}
+            onChangeText={setMiComentario}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.calificarBtn, enviandoCalif && styles.calificarBtnDisabled]}
+            onPress={enviarCalificacion}
+            disabled={enviandoCalif}
+          >
+            <Text style={styles.calificarBtnText}>
+              {enviandoCalif ? 'Enviando…' : 'Enviar calificación'}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -227,6 +298,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
+  },
+  calificarBox: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    gap: spacing.sm,
+  },
+  calificarTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  starsPick: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  calificarInput: {
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    fontSize: 14,
+    color: colors.text,
+    minHeight: 44,
+  },
+  calificarBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  calificarBtnDisabled: {
+    opacity: 0.6,
+  },
+  calificarBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.onPrimary,
   },
   sectionTitle: {
     alignSelf: 'flex-start',

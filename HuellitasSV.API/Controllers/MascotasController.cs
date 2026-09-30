@@ -28,6 +28,9 @@ public class MascotasController : ControllerBase
 
     private readonly ICurrentUserService _usuarioActual;
 
+    /// <summary>Guardado de la imagen de la mascota (validación de tamaño y extensión).</summary>
+    private readonly IArchivoService _archivos;
+
     // ============================================================
     // 1) CONSTRUCTOR E INYECCIÓN DE DEPENDENCIAS
     // ============================================================
@@ -38,11 +41,17 @@ public class MascotasController : ControllerBase
     /// <param name="context">Contexto de Entity Framework Core de HuellitasSV.</param>
     /// <param name="calificaciones">Calificación de los refugios, resuelta en una sola consulta.</param>
     /// <param name="usuarioActual">Claims del token ya convertidos.</param>
-    public MascotasController(ApplicationDbContext context, ICalificacionService calificaciones, ICurrentUserService usuarioActual)
+    /// <param name="archivos">Guardado de la imagen de la mascota.</param>
+    public MascotasController(
+        ApplicationDbContext context,
+        ICalificacionService calificaciones,
+        ICurrentUserService usuarioActual,
+        IArchivoService archivos)
     {
         _context = context;
         _calificaciones = calificaciones;
         _usuarioActual = usuarioActual;
+        _archivos = archivos;
     }
 
     /// <summary>
@@ -361,27 +370,15 @@ public class MascotasController : ControllerBase
         if (!refugioExiste)
             return BadRequest(new { error = "El refugio especificado no existe." });
 
-        // Procesar imagen si se proporciona
-        string? urlImagen = null;
-        if (imagen != null && imagen.Length > 0)
+        // Procesar imagen si se proporciona (valida tamaño y extensión).
+        string? urlImagen;
+        try
         {
-            // Asegurar que la carpeta exista
-            var carpetaImagenes = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "imagenes", "mascotas");
-            if (!Directory.Exists(carpetaImagenes))
-                Directory.CreateDirectory(carpetaImagenes);
-
-            // Generar nombre de archivo único
-            var extension = Path.GetExtension(imagen.FileName);
-            var nombreArchivo = $"mascota_{Guid.NewGuid()}{extension}";
-            var rutaArchivo = Path.Combine(carpetaImagenes, nombreArchivo);
-
-            // Guardar el archivo
-            using (var stream = new FileStream(rutaArchivo, FileMode.Create))
-            {
-                await imagen.CopyToAsync(stream);
-            }
-
-            urlImagen = $"/imagenes/mascotas/{nombreArchivo}";
+            urlImagen = await _archivos.GuardarAsync(imagen, "mascotas");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
 
         var mascota = new Mascota
@@ -430,7 +427,11 @@ public class MascotasController : ControllerBase
     /// <response code="404">Mascota no encontrada.</response>
     [HttpPut("{id}")]
     [Authorize(Roles = "Refugio")]
-    public async Task<ActionResult<MascotaRespuestaDto>> ActualizarMascota(long id, [FromBody] ActualizarMascotaDto dto)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<MascotaRespuestaDto>> ActualizarMascota(
+        long id,
+        [FromForm] ActualizarMascotaDto dto,
+        IFormFile? imagen)
     {
         var mascotaExistente = await _context.Mascota.FindAsync(id);
         if (mascotaExistente is null)
@@ -464,6 +465,19 @@ public class MascotasController : ControllerBase
             mascotaExistente.EstadoSalud = dto.EstadoSalud.ToLower();
         if (!string.IsNullOrEmpty(dto.Estado))
             mascotaExistente.Estado = dto.Estado.ToLower();
+
+        // La imagen es opcional: si llega una nueva, reemplaza a la anterior.
+        if (imagen is not null && imagen.Length > 0)
+        {
+            try
+            {
+                mascotaExistente.ImagenUrl = await _archivos.GuardarAsync(imagen, "mascotas");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
 
         await _context.SaveChangesAsync();
 

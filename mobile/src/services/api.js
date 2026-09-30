@@ -170,6 +170,19 @@ class ApiService {
     return this.request(`/Refugios/${id}`, { auth: false });
   }
 
+  // Calificar un refugio (1-5 estrellas). Si ya se califico, se actualiza.
+  async calificarRefugio(id, estrellas, comentario) {
+    return this.request(`/Refugios/${id}/calificar`, {
+      method: 'POST',
+      body: { estrellas, comentario },
+    });
+  }
+
+  // Calificacion que el usuario autenticado le dio a un refugio (0 si no ha calificado).
+  async getMiCalificacion(id) {
+    return this.request(`/Refugios/${id}/mi-calificacion`);
+  }
+
   async updateRefugioPerfil(data) {
     return this.request('/Refugios/perfil', {
       method: 'PUT',
@@ -219,14 +232,17 @@ class ApiService {
 
   async registrarMascota(data, imagen) {
     const formData = new FormData();
-    Object.keys(data).forEach(key => {
-      formData.append(key, data[key]);
+    Object.keys(data).forEach((key) => {
+      const valor = data[key];
+      if (valor !== undefined && valor !== null) {
+        formData.append(key, String(valor));
+      }
     });
     if (imagen) {
       formData.append('imagen', {
         uri: imagen.uri,
         type: imagen.type || 'image/jpeg',
-        name: imagen.name || 'imagen.jpg',
+        name: imagen.name || 'mascota.jpg',
       });
     }
     // No se fija Content-Type: la plataforma lo arma con el boundary correcto.
@@ -237,10 +253,25 @@ class ApiService {
     });
   }
 
-  async actualizarMascota(id, data) {
+  async actualizarMascota(id, data, imagen) {
+    // El PUT usa [FromForm] en el backend: se envia multipart y la imagen es opcional.
+    const formData = new FormData();
+    Object.keys(data).forEach((key) => {
+      const valor = data[key];
+      if (valor !== undefined && valor !== null) {
+        formData.append(key, String(valor));
+      }
+    });
+    if (imagen) {
+      formData.append('imagen', {
+        uri: imagen.uri,
+        type: imagen.type || 'image/jpeg',
+        name: imagen.name || 'mascota.jpg',
+      });
+    }
     return this.request(`/Mascotas/${id}`, {
       method: 'PUT',
-      body: data,
+      body: formData,
     });
   }
 

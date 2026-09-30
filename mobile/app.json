@@ -34,6 +34,12 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "HuellitasSV usa tu ubicación para reportar animales en situación de calle."
+        }
       ]
     ]
   }

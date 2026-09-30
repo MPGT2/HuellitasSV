@@ -108,7 +108,6 @@ export default function MascotaFormScreen({ navigation, route }) {
     setLoading(true);
     try {
       if (editando) {
-        // El PUT del backend es JSON y no admite imagen: la foto se muestra de solo lectura.
         const body = {
           Nombre: form.nombre.trim(),
           Especie: form.especie,
@@ -120,7 +119,15 @@ export default function MascotaFormScreen({ navigation, route }) {
           body.Estado = estado;
           if (justificacion.trim()) body.JustificacionCambioEstado = justificacion.trim();
         }
-        await api.actualizarMascota(mascota.idMascota, body);
+        // La imagen es opcional: si se eligio una nueva, reemplaza la anterior.
+        const imagen = foto
+          ? {
+              uri: foto.uri,
+              name: foto.fileName || 'mascota.jpg',
+              type: foto.mimeType || 'image/jpeg',
+            }
+          : null;
+        await api.actualizarMascota(mascota.idMascota, body, imagen);
       } else {
         // Alta multipart. IdRefugio es obligatorio en el DTO aunque el backend
         // use el token: si la sesion no lo trae, no tiene sentido intentarlo.
@@ -188,21 +195,21 @@ export default function MascotaFormScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Foto: seleccionable en el alta; de solo lectura en la edicion. */}
+          {/* Foto: se puede elegir o cambiar tanto al crear como al editar. */}
           <Text style={styles.label}>FOTO</Text>
           {previewUri ? (
             <View style={styles.previewWrap}>
               <Image source={{ uri: previewUri }} style={styles.preview} />
-              {!editando ? (
-                <TouchableOpacity
-                  style={styles.previewAction}
-                  onPress={elegirFoto}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="camera" size={16} color={colors.onPrimary} />
-                  <Text style={styles.previewActionText}>Cambiar</Text>
-                </TouchableOpacity>
-              ) : null}
+              <TouchableOpacity
+                style={styles.previewAction}
+                onPress={elegirFoto}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="camera" size={16} color={colors.onPrimary} />
+                <Text style={styles.previewActionText}>
+                  {editando ? 'Cambiar foto' : 'Cambiar'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity

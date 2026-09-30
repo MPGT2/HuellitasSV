@@ -48,6 +48,7 @@ const estadoBg = (estado) => {
 export default function RefugioDashboardScreen() {
   const [mascotas, setMascotas] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
+  const [reportes, setReportes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('mascotas');
@@ -61,9 +62,13 @@ export default function RefugioDashboardScreen() {
       if (activeTab === 'mascotas') {
         const data = await api.getMascotasByRefugio(user.idRefugio);
         setMascotas(data);
-      } else {
+      } else if (activeTab === 'solicitudes') {
         const data = await api.getSolicitudesRefugio();
         setSolicitudes(data);
+      } else {
+        // HU-15: reportes pendientes, con distancia y bandera de cercania.
+        const data = await api.getReportesRescate('Pendiente');
+        setReportes(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       setError(err.message);
@@ -107,6 +112,71 @@ export default function RefugioDashboardScreen() {
       ],
     );
   };
+
+  const atenderReporte = (reporte) => {
+    Alert.alert(
+      'Marcar como atendido',
+      '¿Confirmas que este reporte ya fue atendido?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, atender',
+          onPress: async () => {
+            try {
+              await api.marcarReporteAtendido(reporte.idReporte);
+              fetchData();
+            } catch (err) {
+              Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const renderReporte = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.mascotaRow}>
+        {resolveImageUrl(item.fotoUrl) ? (
+          <Image source={{ uri: resolveImageUrl(item.fotoUrl) }} style={styles.mascotaThumb} />
+        ) : (
+          <View style={[styles.mascotaThumb, styles.mascotaThumbEmpty]}>
+            <Ionicons name="image-outline" size={20} color={colors.muted} />
+          </View>
+        )}
+        <View style={styles.cardDetails}>
+          <Text style={styles.petName} numberOfLines={2}>
+            {item.descripcion}
+          </Text>
+          <View style={styles.reporteMeta}>
+            <Ionicons
+              name={item.cerca ? 'location' : 'navigate-outline'}
+              size={14}
+              color={item.cerca ? colors.success : colors.warning}
+            />
+            <Text
+              style={[
+                styles.detail,
+                { color: item.cerca ? colors.success : colors.warning },
+              ]}
+            >
+              {item.distanciaKm != null
+                ? `${item.distanciaKm} km ${item.cerca ? '· cerca' : '· lejos'}`
+                : 'Distancia no disponible'}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={styles.approveButton}
+          onPress={() => atenderReporte(item)}
+        >
+          <Text style={styles.approveText}>Marcar atendido</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const renderMascota = ({ item }) => (
     <TouchableOpacity
@@ -293,6 +363,22 @@ export default function RefugioDashboardScreen() {
             Solicitudes
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'rescates' && styles.tabActive]}
+          onPress={() => setActiveTab('rescates')}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="alert-circle-outline"
+            size={18}
+            color={activeTab === 'rescates' ? colors.primary : colors.muted}
+          />
+          <Text
+            style={[styles.tabText, activeTab === 'rescates' && styles.tabTextActive]}
+          >
+            Rescates
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {activeTab === 'mascotas' ? (
@@ -318,21 +404,53 @@ export default function RefugioDashboardScreen() {
       ) : null}
 
       <FlatList
-        data={activeTab === 'mascotas' ? mascotas : solicitudes}
-        keyExtractor={(item) => item.idMascota?.toString() || item.idSolicitud?.toString()}
-        renderItem={activeTab === 'mascotas' ? renderMascota : renderSolicitud}
+        data={
+          activeTab === 'mascotas'
+            ? mascotas
+            : activeTab === 'solicitudes'
+              ? solicitudes
+              : reportes
+        }
+        keyExtractor={(item) =>
+          (item.idMascota ?? item.idSolicitud ?? item.idReporte)?.toString()
+        }
+        renderItem={
+          activeTab === 'mascotas'
+            ? renderMascota
+            : activeTab === 'solicitudes'
+              ? renderSolicitud
+              : renderReporte
+        }
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name={activeTab === 'mascotas' ? 'paw' : 'document-text'} size={64} color={colors.muted} />
+            <Ionicons
+              name={
+                activeTab === 'mascotas'
+                  ? 'paw'
+                  : activeTab === 'solicitudes'
+                    ? 'document-text'
+                    : 'alert-circle-outline'
+              }
+              size={64}
+              color={colors.muted}
+            />
             <Text style={styles.emptyText}>
-              {activeTab === 'mascotas' ? 'No hay mascotas registradas' : 'No hay solicitudes'}
+              {activeTab === 'mascotas'
+                ? 'No hay mascotas registradas'
+                : activeTab === 'solicitudes'
+                  ? 'No hay solicitudes'
+                  : 'No hay reportes pendientes'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {activeTab === 'mascotas' ? 'Agrega tu primera mascota' : 'Las solicitudes aparecerán aquí'}
+              {activeTab === 'mascotas'
+                ? 'Agrega tu primera mascota'
+                : activeTab === 'solicitudes'
+                  ? 'Las solicitudes aparecerán aquí'
+                  : 'Cuando la comunidad reporte animales, aparecerán aquí'}
             </Text>
           </View>
         }
@@ -552,6 +670,12 @@ const styles = StyleSheet.create({
   detail: {
     fontSize: 13,
     color: colors.muted,
+  },
+  reporteMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
   },
   solicitudActions: {
     flexDirection: 'row',

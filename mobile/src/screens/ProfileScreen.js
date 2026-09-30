@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,7 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 
 export default function ProfileScreen() {
+  const nav = useNavigation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -182,6 +184,18 @@ export default function ProfileScreen() {
               <Text style={styles.roleText}>{isUsuario ? 'Usuario' : 'Refugio'}</Text>
             </View>
           </View>
+
+          {isUsuario ? (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => nav.navigate('MisReportes')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="megaphone-outline" size={20} color={colors.primary} />
+              <Text style={styles.menuRowText}>Mis reportes</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </TouchableOpacity>
+          ) : null}
 
           <FormField
             label={isUsuario ? 'NOMBRE COMPLETO' : 'NOMBRE DE CONTACTO'}
@@ -355,6 +369,23 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    marginBottom: 20,
+  },
+  menuRowText: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
   },

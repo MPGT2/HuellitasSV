@@ -15,6 +15,8 @@ import MyRequestsScreen from '../screens/MyRequestsScreen';
 import SolicitudDetailScreen from '../screens/SolicitudDetailScreen';
 import MascotaFormScreen from '../screens/MascotaFormScreen';
 import RefugioProfileScreen from '../screens/RefugioProfileScreen';
+import ReporteFormScreen from '../screens/ReporteFormScreen';
+import MisReportesScreen from '../screens/MisReportesScreen';
 import AdminNoDisponibleScreen from '../screens/AdminNoDisponibleScreen';
 
 const Stack = createNativeStackNavigator();
@@ -102,6 +104,8 @@ function UsuarioStack() {
       <Stack.Screen name="AdoptionRequest" component={AdoptionRequestScreen} options={{ title: 'Solicitar adopción' }} />
       <Stack.Screen name="SolicitudDetail" component={SolicitudDetailScreen} options={{ title: 'Detalle de la solicitud' }} />
       <Stack.Screen name="RefugioProfile" component={RefugioProfileScreen} options={{ title: 'Refugio' }} />
+      <Stack.Screen name="ReporteForm" component={ReporteFormScreen} options={{ title: 'Reportar animal' }} />
+      <Stack.Screen name="MisReportes" component={MisReportesScreen} options={{ title: 'Mis reportes' }} />
     </Stack.Navigator>
   );
 }

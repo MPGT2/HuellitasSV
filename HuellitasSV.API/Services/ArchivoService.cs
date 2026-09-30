@@ -24,8 +24,8 @@ public interface IArchivoService
 /// <inheritdoc />
 public class ArchivoService : IArchivoService
 {
-    /// <summary>Tamaño máximo permitido por archivo: 5 MB.</summary>
-    private const long MaxBytes = 5 * 1024 * 1024;
+    /// <summary>Tamaño máximo permitido por archivo: 10 MB.</summary>
+    private const long MaxBytes = 10 * 1024 * 1024;
 
     /// <summary>Extensiones admitidas: imágenes comunes y PDF para documentación.</summary>
     private static readonly string[] ExtensionesPermitidas =
@@ -43,7 +43,7 @@ public class ArchivoService : IArchivoService
             return null;
 
         if (archivo.Length > MaxBytes)
-            throw new InvalidOperationException("El archivo supera el tamaño máximo permitido de 5 MB.");
+            throw new InvalidOperationException("El archivo supera el tamaño máximo permitido de 10 MB.");
 
         var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
         if (!ExtensionesPermitidas.Contains(extension))

@@ -12,6 +12,14 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// La API trabaja siempre con formato invariante (punto decimal). Sin esto, el
+// model binding de los formularios (multipart) usa la cultura del sistema y una
+// latitud como "13.6929" se interpreta como 136929 (miles), fuera de rango.
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture =
+    System.Globalization.CultureInfo.InvariantCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture =
+    System.Globalization.CultureInfo.InvariantCulture;
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

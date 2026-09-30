@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
@@ -70,9 +70,13 @@ export default function MyRequestsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchSolicitudes(activeFilter);
-  }, [activeFilter, fetchSolicitudes]);
+  // Se recarga al enfocar la pestaña: asi el usuario ve el estado actualizado
+  // (Aprobada/Rechazada) apenas el refugio decide, sin reiniciar la app.
+  useFocusEffect(
+    useCallback(() => {
+      fetchSolicitudes(activeFilter);
+    }, [activeFilter, fetchSolicitudes]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

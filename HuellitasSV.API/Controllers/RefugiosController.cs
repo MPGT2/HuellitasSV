@@ -95,6 +95,87 @@ namespace HuellitasSV.API.Controllers
         }
 
         /// <summary>
+        /// [HU-10] Califica un refugio (1 a 5 estrellas) con un comentario opcional.
+        /// Si el usuario ya lo había calificado, actualiza su calificación.
+        /// </summary>
+        /// <param name="id">Identificador del refugio a calificar.</param>
+        /// <param name="dto">Estrellas (1-5) y comentario opcional.</param>
+        /// <returns>El promedio actualizado del refugio.</returns>
+        /// <response code="200">Calificación registrada.</response>
+        /// <response code="400">Estrellas fuera de rango.</response>
+        /// <response code="404">Refugio no encontrado.</response>
+        [HttpPost("{id:long}/calificar")]
+        [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> Calificar(long id, [FromBody] CalificarRefugioDto dto)
+        {
+            var idUsuario = _usuarioActual.ObtenerUsuarioId();
+            if (idUsuario <= 0)
+                return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+            if (!await _context.Refugio.AnyAsync(r => r.IdRefugio == id))
+                return NotFound(new { error = "Refugio no encontrado." });
+
+            var existente = await _context.Calificaciones
+                .FirstOrDefaultAsync(c => c.IdRefugio == id && c.IdUsuario == idUsuario);
+
+            if (existente is null)
+            {
+                _context.Calificaciones.Add(new Calificacion
+                {
+                    IdRefugio = id,
+                    IdUsuario = idUsuario,
+                    Estrellas = dto.Estrellas,
+                    Comentario = string.IsNullOrWhiteSpace(dto.Comentario) ? null : dto.Comentario.Trim(),
+                    Fecha = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                existente.Estrellas = dto.Estrellas;
+                existente.Comentario = string.IsNullOrWhiteSpace(dto.Comentario) ? null : dto.Comentario.Trim();
+                existente.Fecha = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            var resumen = await _calificaciones.ObtenerResumenAsync(new[] { id });
+            return Ok(new
+            {
+                mensaje = "Calificación registrada.",
+                promedioEstrellas = resumen.Promedio(id),
+                totalCalificaciones = resumen.Total(id)
+            });
+        }
+
+        /// <summary>
+        /// [HU-10] Devuelve la calificación que el usuario autenticado le dio a un refugio (si existe).
+        /// </summary>
+        /// <param name="id">Identificador del refugio.</param>
+        /// <returns>Estrellas y comentario del usuario; estrellas 0 si aún no ha calificado.</returns>
+        [HttpGet("{id:long}/mi-calificacion")]
+        [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult> MiCalificacion(long id)
+        {
+            var idUsuario = _usuarioActual.ObtenerUsuarioId();
+            if (idUsuario <= 0)
+                return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+            var calificacion = await _context.Calificaciones
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.IdRefugio == id && c.IdUsuario == idUsuario);
+
+            return Ok(new
+            {
+                estrellas = calificacion?.Estrellas ?? 0,
+                comentario = calificacion?.Comentario
+            });
+        }
+
+        /// <summary>
         /// [HU-09] Devuelve las mascotas de un refugio, con filtro opcional por estado.
         /// Pensado para el panel del refugio: si no se envía el parámetro, devuelve todas.
         /// </summary>
@@ -665,5 +746,20 @@ namespace HuellitasSV.API.Controllers
         [MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres.")]
         [MaxLength(255, ErrorMessage = "La contraseña no puede exceder 255 caracteres.")]
         public string? Contrasena { get; set; }
+    }
+
+    /// <summary>
+    /// Calificación por estrellas que un usuario le da a un refugio (HU-10).
+    /// </summary>
+    public class CalificarRefugioDto
+    {
+        /// <summary>Estrellas otorgadas, entre 1 y 5.</summary>
+        [Required(ErrorMessage = "Las estrellas son obligatorias.")]
+        [Range(1, 5, ErrorMessage = "Las estrellas deben estar entre 1 y 5.")]
+        public int Estrellas { get; set; }
+
+        /// <summary>Comentario opcional (máximo 500 caracteres).</summary>
+        [MaxLength(500, ErrorMessage = "El comentario no puede exceder 500 caracteres.")]
+        public string? Comentario { get; set; }
     }
 }

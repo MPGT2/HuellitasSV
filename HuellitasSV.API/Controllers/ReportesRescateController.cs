@@ -51,7 +51,7 @@ public class ReportesRescateController : ControllerBase
     /// <param name="estado">Filtra por estado: Pendiente o Atendido (opcional).</param>
     /// <returns>Lista de reportes ordenada de más reciente a más antigua.</returns>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ReporteAnimal>>> GetReportes(
+    public async Task<ActionResult<IEnumerable<ReporteRescateDto>>> GetReportes(
         [FromQuery] long? refugioId,
         [FromQuery] string? estado)
     {
@@ -86,19 +86,43 @@ public class ReportesRescateController : ControllerBase
             .OrderByDescending(r => r.FechaRegistro)
             .ToListAsync();
 
-        // Si el refugio tiene ubicación, se muestran únicamente los reportes cercanos (5 km).
-        if (refugio.Latitud is not null && refugio.Longitud is not null)
-        {
-            reportes = reportes
-                .Where(r => DistanciaKm(
-                    refugio.Latitud!.Value,
-                    refugio.Longitud!.Value,
-                    r.Latitud!.Value,
-                    r.Longitud!.Value) <= RadioCoberturaKm)
-                .ToList();
-        }
+        var tieneUbicacion = refugio.Latitud is not null && refugio.Longitud is not null;
 
-        return Ok(reportes);
+        // Se devuelven TODOS los reportes con su distancia al refugio y una bandera
+        // de cercanía: el panel puede mostrar los lejanos como aviso en vez de ocultarlos.
+        var resultado = reportes
+            .Select(r =>
+            {
+                double? distancia = null;
+                if (tieneUbicacion && r.Latitud is not null && r.Longitud is not null)
+                {
+                    distancia = Math.Round(DistanciaKm(
+                        refugio.Latitud!.Value,
+                        refugio.Longitud!.Value,
+                        r.Latitud.Value,
+                        r.Longitud.Value), 1);
+                }
+
+                return new ReporteRescateDto
+                {
+                    IdReporte = r.IdReporte,
+                    Descripcion = r.Descripcion,
+                    FotoUrl = r.FotoUrl,
+                    Latitud = r.Latitud,
+                    Longitud = r.Longitud,
+                    Estado = r.Estado.ToString(),
+                    FechaRegistro = r.FechaRegistro,
+                    IdRefugio = r.IdRefugio,
+                    DistanciaKm = distancia,
+                    // Sin ubicación del refugio no se puede medir: se tratan como cercanos.
+                    Cerca = distancia is null || distancia <= RadioCoberturaKm
+                };
+            })
+            .OrderBy(r => r.Estado == "Atendido" ? 1 : 0)
+            .ThenBy(r => r.DistanciaKm ?? double.MaxValue)
+            .ToList();
+
+        return Ok(resultado);
     }
 
     /// <summary>
@@ -129,9 +153,7 @@ public class ReportesRescateController : ControllerBase
     /// <param name="request">Refugio que atiende el reporte.</param>
     /// <returns>El reporte atendido, o un error si no cumple las reglas.</returns>
     [HttpPut("{id:int}/atendido")]
-    public async Task<ActionResult<ReporteAnimal>> MarcarComoAtendido(
-        int id,
-        [FromBody] ReporteAtencionRequest request)
+    public async Task<ActionResult<ReporteAnimal>> MarcarComoAtendido(int id)
     {
         // [SEGURIDAD] El refugio que atiende se toma del token JWT (se ignora el IdRefugio del body).
         var idRefugioToken = _usuarioActual.ObtenerRefugioId();
@@ -198,9 +220,38 @@ public class ReportesRescateController : ControllerBase
 }
 
 /// <summary>
-/// Datos enviados por el refugio al confirmar la atención de un reporte de rescate.
+/// Reporte de rescate tal como lo ve el panel del refugio: incluye la distancia
+/// al refugio y si está dentro del radio de cobertura (5 km).
 /// </summary>
-/// <param name="IdRefugio">Identificador del refugio que atiende el reporte.</param>
-public record ReporteAtencionRequest(
-    [Range(1L, long.MaxValue, ErrorMessage = "El IdRefugio es obligatorio.")]
-    long IdRefugio);
+public sealed class ReporteRescateDto
+{
+    /// <summary>Identificador del reporte.</summary>
+    public int IdReporte { get; set; }
+
+    /// <summary>Descripción del animal y su situación.</summary>
+    public string Descripcion { get; set; } = string.Empty;
+
+    /// <summary>Ruta o URL de la foto del animal.</summary>
+    public string FotoUrl { get; set; } = string.Empty;
+
+    /// <summary>Latitud donde fue reportado.</summary>
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud donde fue reportado.</summary>
+    public double? Longitud { get; set; }
+
+    /// <summary>Estado del reporte: Pendiente o Atendido.</summary>
+    public string Estado { get; set; } = string.Empty;
+
+    /// <summary>Fecha de creación del reporte (UTC).</summary>
+    public DateTime FechaRegistro { get; set; }
+
+    /// <summary>Refugio que atendió el reporte, si corresponde.</summary>
+    public long? IdRefugio { get; set; }
+
+    /// <summary>Distancia en km entre el refugio y el reporte; null si no se puede medir.</summary>
+    public double? DistanciaKm { get; set; }
+
+    /// <summary>true si el reporte está dentro del radio de cobertura del refugio.</summary>
+    public bool Cerca { get; set; }
+}
