@@ -216,5 +216,19 @@ public class ApplicationDbContext : DbContext
             new Mascota { IdMascota = 9008, IdRefugio = 9002, Nombre = "Duke", Especie = "perro", Tamano = "grande", EdadMeses = 24, EstadoSalud = "sano", Estado = "disponible", FechaRegistro = new DateTime(2026, 8, 15, 10, 0, 0, DateTimeKind.Utc), ImagenUrl = "https://placedog.net/500/400" },
             new Mascota { IdMascota = 9009, IdRefugio = 9002, Nombre = "Pelusa", Especie = "gato", Tamano = "mediano", EdadMeses = 14, EstadoSalud = "sano", Estado = "en_tratamiento", FechaRegistro = new DateTime(2026, 8, 28, 10, 0, 0, DateTimeKind.Utc) },
             new Mascota { IdMascota = 9010, IdRefugio = 9002, Nombre = "Zeus", Especie = "perro", Tamano = "mediano", EdadMeses = 36, EstadoSalud = "sano", Estado = "fallecida", FechaRegistro = new DateTime(2026, 9, 10, 10, 0, 0, DateTimeKind.Utc) });
+
+        // ===== Claves primarias generadas por la base =====
+        // HasData() con identificadores fijos hace que EF Core marque esas claves
+        // como ValueGeneratedNever para la entidad completa. Como las columnas
+        // id_cuenta, id_usuario, id_refugio e id_mascota SI son IDENTITY, todo
+        // alta nueva fallaba con:
+        //   "The value of 'Cuenta.IdCuenta' is unknown when attempting to save
+        //    changes."
+        // Reafirmar ValueGeneratedOnAdd despues de los HasData revierte ese
+        // comportamiento sin tocar los datos semilla.
+        modelBuilder.Entity<Cuenta>().Property(c => c.IdCuenta).ValueGeneratedOnAdd();
+        modelBuilder.Entity<Usuario>().Property(u => u.IdUsuario).ValueGeneratedOnAdd();
+        modelBuilder.Entity<Refugio>().Property(r => r.IdRefugio).ValueGeneratedOnAdd();
+        modelBuilder.Entity<Mascota>().Property(m => m.IdMascota).ValueGeneratedOnAdd();
     }
 }
