@@ -1,9 +1,6 @@
 // API Service for HuellitasSV Backend
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Use your local IP for Android emulator/device, localhost for iOS simulator
-const BASE_URL = 'http://10.0.2.2:5000/api'; // Android emulator
-// const BASE_URL = 'http://localhost:5000/api'; // iOS simulator
+import { API_BASE_URL } from '../config/env';
 
 const TOKEN_KEY = '@huellitas_token';
 const USER_KEY = '@huellitas_user';
@@ -45,32 +42,44 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${BASE_URL}${endpoint}`;
+    const url = `${API_BASE_URL}${endpoint}`;
     const config = {
-      headers: this.getHeaders(options.auth !== false),
       ...options,
+      headers: { ...this.getHeaders(options.auth !== false), ...options.headers },
     };
 
-    if (config.body && typeof config.body === 'object') {
+    // FormData ya fija su propio boundary: no se puede stringify.
+    if (config.body && !(config.body instanceof FormData)) {
       config.body = JSON.stringify(config.body);
     }
 
+    let response;
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        const error = data?.error || data?.errors?.[0] || 'Error en la solicitud';
-        throw new Error(error);
-      }
-
-      return data;
+      response = await fetch(url, config);
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('Network')) {
-        throw new Error('No se puede conectar al servidor. Verifica que el backend esté corriendo.');
-      }
-      throw error;
+      // fetch solo rechaza cuando no hubo respuesta (API apagada, IP mal,
+      // firewall). Un 4xx o 5xx es una respuesta valida y se reporta arriba.
+      throw new Error(
+        `No se pudo conectar con la API (${API_BASE_URL}). ` +
+          'Verifica que la API este corriendo con el perfil "lan" y que el telefono este en la misma red Wi-Fi.'
+      );
     }
+
+    // 204 y algunos 200 vienen sin cuerpo.
+    const texto = await response.text();
+    const data = texto ? JSON.parse(texto) : null;
+
+    if (!response.ok) {
+      const mensaje =
+        data?.error ||
+        data?.message ||
+        data?.title ||
+        data?.errors?.[0] ||
+        `Error ${response.status}`;
+      throw new Error(mensaje);
+    }
+
+    return data;
   }
 
   // Auth endpoints
@@ -188,13 +197,11 @@ class ApiService {
         name: imagen.name || 'imagen.jpg',
       });
     }
+    // No se fija Content-Type: la plataforma lo arma con el boundary correcto.
+    // Declararlo a mano produce "Missing boundary" en el servidor.
     return this.request('/Mascotas', {
       method: 'POST',
       body: formData,
-      headers: {
-        ...this.getHeaders(),
-        'Content-Type': 'multipart/form-data',
-      },
     });
   }
 
