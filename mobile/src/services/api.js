@@ -83,16 +83,10 @@ class ApiService {
   }
 
   // Auth endpoints
-  async loginUsuario(correo, contrasena) {
-    return this.request('/Usuarios/login', {
-      method: 'POST',
-      body: { correo, contrasena },
-      auth: false,
-    });
-  }
-
-  async loginRefugio(correo, contrasena) {
-    return this.request('/Refugios/login', {
+  // El login es unico: la API deduce el rol desde la cuenta. La app no elige.
+  // El registro sigue separado porque cada rol tiene su propio contrato.
+  async login(correo, contrasena) {
+    return this.request('/Auth/login', {
       method: 'POST',
       body: { correo, contrasena },
       auth: false,

@@ -8,23 +8,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const login = useCallback(async (role, correo, contrasena) => {
+  const login = useCallback(async (correo, contrasena) => {
     setError(null);
     try {
-      let response;
-      if (role === 'usuario') {
-        response = await api.loginUsuario(correo, contrasena);
-      } else if (role === 'refugio') {
-        response = await api.loginRefugio(correo, contrasena);
-      } else {
-        throw new Error('Rol no válido');
-      }
+      const response = await api.login(correo, contrasena);
 
       const userData = {
         idCuenta: response.idCuenta,
         rol: response.rol,
         nombre: response.nombre,
-        correo: response.correo,
+        // La API no devuelve el correo, pero el perfil lo necesita y la sesion
+        // debe sobrevivir al reinicio de la app.
+        correo: response.correo ?? correo,
         token: response.token,
       };
 
@@ -90,7 +85,12 @@ export function AuthProvider({ children }) {
 
   const loadUser = useCallback(async () => {
     await api.init();
-    if (api.isLoggedIn()) {
+    // Un token sin su usuario guardado (instalacion interrumpida, datos
+    // borrados a medias) produciria un user=null y dejaria la app sin sesion
+    // pero sin explicar por que. Se limpia y se arranca de cero.
+    if (api.token && !api.user) {
+      await api.clearAuth();
+    } else if (api.user) {
       setUser({
         idCuenta: api.user.idCuenta,
         rol: api.user.rol,

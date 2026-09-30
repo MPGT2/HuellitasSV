@@ -35,7 +35,7 @@ export default function ProfileScreen() {
     documentacionUrl: '',
   });
   const [errors, setErrors] = useState({});
-  const { user, isUsuario, isRefugio, updateUser } = useAuth();
+  const { user, isUsuario, isRefugio, updateUser, logout } = useAuth();
 
   const fetchProfile = async () => {
     try {
@@ -135,9 +135,9 @@ export default function ProfileScreen() {
       '¿Estás seguro de que quieres cerrar sesión?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sí, cerrar sesión', onPress: () => {
-          // Navigation will handle this via the header button
-        }}
+        // Sin esto el boton de confirmar no hacia nada y el usuario se
+        // quedaba atrapado en la sesion, sin forma de salir.
+        { text: 'Sí, cerrar sesión', onPress: logout },
       ]
     );
   };
@@ -224,20 +224,22 @@ export default function ProfileScreen() {
 
           {isRefugio && (
             <View style={styles.coordsRow}>
-              <FormField
-                label="LATITUD"
-                placeholder="Ej. 13.6929"
-                keyboardType="decimal-pad"
-                value={form.latitud}
-                onChangeText={(v) => handleChange('latitud', v)}
-              />
-              <FormField
-                label="LONGITUD"
-                placeholder="Ej. -89.2182"
-                keyboardType="decimal-pad"
-                value={form.longitud}
-                onChangeText={(v) => handleChange('longitud', v)}
-              />
+                <FormField
+                  style={styles.coordField}
+                  label="LATITUD"
+                  placeholder="Ej. 13.6929"
+                  keyboardType="decimal-pad"
+                  value={form.latitud}
+                  onChangeText={(v) => handleChange('latitud', v)}
+                />
+                <FormField
+                  style={styles.coordField}
+                  label="LONGITUD"
+                  placeholder="Ej. -89.2182"
+                  keyboardType="decimal-pad"
+                  value={form.longitud}
+                  onChangeText={(v) => handleChange('longitud', v)}
+                />
             </View>
           )}
 
@@ -351,7 +353,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  coordsRow > *:nth-child(1) {
+  // Antes decia 'coordsRow > *:nth-child(1)': un selector CSS, no un estilo de
+  // React Native. Rompia el parseo del archivo y hacia que la pantalla no
+  // cargara. El reparto equitativo de los dos campos se resuelve con flex: 1.
+  coordField: {
     flex: 1,
   },
   logoutButton: {

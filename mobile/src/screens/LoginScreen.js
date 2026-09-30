@@ -10,23 +10,19 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import RoleTabs from '../components/RoleTabs';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function LoginScreen({ navigation, route }) {
-  const [role, setRole] = useState(route.params?.role ?? 'usuario');
+export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { login, clearError } = useAuth();
-  const nav = useNavigation();
 
   const validate = () => {
     const next = {};
@@ -42,15 +38,11 @@ export default function LoginScreen({ navigation, route }) {
     setLoading(true);
     clearError();
     try {
-      await login(role, email.trim().toLowerCase(), password);
-      Alert.alert('Éxito', 'Bienvenido a HuellitasSV');
-      if (role === 'usuario') {
-        nav.navigate('Catalog');
-      } else {
-        nav.navigate('RefugioDashboard');
-      }
+      // No se navega a mano: al guardarse la sesion, AppNavigator cambia del
+      // stack Publico al del rol y se encarga del destino.
+      await login(email.trim().toLowerCase(), password);
     } catch (err) {
-      Alert.alert('Error', err.message);
+      Alert.alert('No se pudo iniciar sesión', err.message);
     } finally {
       setLoading(false);
     }
@@ -81,8 +73,6 @@ export default function LoginScreen({ navigation, route }) {
           </View>
         </View>
 
-        <RoleTabs value={role} onChange={setRole} />
-
         <FormField
           label="CORREO ELECTRÓNICO"
           placeholder="correo@ejemplo.com"
@@ -112,7 +102,7 @@ export default function LoginScreen({ navigation, route }) {
 
         <View style={styles.divider}>
           <Text style={styles.dividerText}>¿No tienes cuenta?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register', { role })}>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <Text style={styles.dividerLink}>Regístrate</Text>
           </TouchableOpacity>
         </View>

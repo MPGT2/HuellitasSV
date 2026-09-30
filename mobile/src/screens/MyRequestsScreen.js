@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { api } from '../services/api';
-import { useNavigation } from '@react-navigation/native';
 
 export default function MyRequestsScreen() {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -20,7 +19,6 @@ export default function MyRequestsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('todas');
   const [error, setError] = useState(null);
-  const nav = useNavigation();
 
   const fetchSolicitudes = async () => {
     try {
@@ -55,12 +53,13 @@ export default function MyRequestsScreen() {
     }
   };
 
+  // La tarjeta ya muestra todo el detalle (mascota, estado, fecha y el
+  // comentario de la decision). Antes era pulsable y navegaba a
+  // 'SolicitudDetail', una pantalla que nunca se registro en AppNavigator:
+  // React Navigation lanzaba "The action 'NAVIGATE' with payload ... was not
+  // handled by any navigator" al tocar cualquier fila.
   const renderSolicitud = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => nav.navigate('SolicitudDetail', { solicitud: item })}
-      activeOpacity={0.8}
-    >
+    <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.mascotaInfo}>
           <Text style={styles.mascotaNombre}>{item.mascota?.nombre || 'Mascota'}</Text>
@@ -91,7 +90,7 @@ export default function MyRequestsScreen() {
           </Text>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading && solicitudes.length === 0) {

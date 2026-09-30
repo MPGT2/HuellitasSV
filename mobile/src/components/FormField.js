@@ -3,12 +3,14 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-export default function FormField({ label, error, secureTextEntry, ...inputProps }) {
+export default function FormField({ label, error, secureTextEntry, style, ...inputProps }) {
   const [visible, setVisible] = useState(false);
   const isPassword = secureTextEntry === true;
 
   return (
-    <View style={styles.container}>
+    // style se aplica al contenedor, no al TextInput: permite repartir campos
+    // en una fila (flex: 1) sin que RN lo interprete como estilo del input.
+    <View style={[styles.container, style]}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.inputWrapper}>
         <TextInput

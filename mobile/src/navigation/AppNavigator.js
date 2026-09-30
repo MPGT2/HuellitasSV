@@ -9,6 +9,7 @@ import PetDetailScreen from '../screens/PetDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AdoptionRequestScreen from '../screens/AdoptionRequestScreen';
 import MyRequestsScreen from '../screens/MyRequestsScreen';
+import AdminNoDisponibleScreen from '../screens/AdminNoDisponibleScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,21 +55,16 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isLoggedIn ? (
-        <>
-          <Stack.Screen name="Public" component={PublicStack} />
-        </>
+        <Stack.Screen name="Public" component={PublicStack} />
       ) : isUsuario ? (
-        <>
-          <Stack.Screen name="Usuario" component={UsuarioStack} />
-        </>
+        <Stack.Screen name="Usuario" component={UsuarioStack} />
       ) : isRefugio ? (
-        <>
-          <Stack.Screen name="Refugio" component={RefugioStack} />
-        </>
+        <Stack.Screen name="Refugio" component={RefugioStack} />
       ) : (
-        <>
-          <Stack.Screen name="Public" component={PublicStack} />
-        </>
+        <Stack.Screen
+          name="AdminNoDisponible"
+          component={AdminNoDisponibleScreen}
+        />
       )}
     </Stack.Navigator>
   );

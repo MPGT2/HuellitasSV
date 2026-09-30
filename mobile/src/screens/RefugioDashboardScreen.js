@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { api } from '../services/api';
-import { useAuth, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
 export default function RefugioDashboardScreen() {
   const [mascotas, setMascotas] = useState([]);

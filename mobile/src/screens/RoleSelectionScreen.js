@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import RoleCard from '../components/RoleCard';
+import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
 
 export default function RoleSelectionScreen({ navigation }) {
@@ -18,22 +18,13 @@ export default function RoleSelectionScreen({ navigation }) {
         </Text>
       </View>
 
-      <Text style={styles.sectionLabel}>INICIAR SESIÓN COMO</Text>
-
+      {/* El login es unico: la API deduce el rol desde la cuenta, asi que ya
+          no tiene sentido pedirlo aqui. El rol solo se elige al registrarse. */}
       <View style={styles.cards}>
-        <RoleCard
-          icon="person"
-          color={colors.primary}
-          title="Usuario"
-          description="Adopta mascotas, reporta animales y dona insumos."
-          onPress={() => navigation.navigate('Catalog')}
-        />
-        <RoleCard
-          icon="home"
-          color={colors.accent}
-          title="Refugio"
-          description="Gestiona rescates, mascotas y solicitudes de adopción."
-          onPress={() => navigation.navigate('Catalog')}
+        <PrimaryButton
+          title="Iniciar sesión"
+          icon="log-in"
+          onPress={() => navigation.navigate('Login')}
         />
       </View>
 
@@ -79,13 +70,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: colors.muted,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#94A3B8',
-    letterSpacing: 1.5,
-    marginBottom: 16,
   },
   cards: {
     gap: 16,
