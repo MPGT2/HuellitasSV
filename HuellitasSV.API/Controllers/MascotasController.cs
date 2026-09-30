@@ -112,7 +112,21 @@ public class MascotasController : ControllerBase
                 EstadoSalud = m.EstadoSalud,
                 Estado = m.Estado,
                 FechaRegistro = m.FechaRegistro,
-                ImagenUrl = m.ImagenUrl
+                ImagenUrl = m.ImagenUrl,
+                // Sin esto el detalle devolvia refugio: null mientras el
+                // catalogo si lo traia, y la pantalla de detalle mostraba el
+                // refugio en blanco. Se mantiene la misma forma que el catalogo.
+                Refugio = m.Refugio != null ? new RefugioRespuestaDto
+                {
+                    IdRefugio = m.Refugio.IdRefugio,
+                    NombreOrganizacion = m.Refugio.NombreOrganizacion,
+                    Departamento = m.Refugio.Departamento,
+                    Municipio = m.Refugio.Municipio,
+                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
+                    PromedioEstrellas = _context.Calificaciones
+                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
+                        .Average(c => (double?)c.Estrellas)
+                } : null
             })
             .FirstOrDefaultAsync();
 
