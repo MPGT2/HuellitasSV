@@ -20,3 +20,37 @@ appsettings.Local.json
 
 # Exports de OpenAPI generados (no son fuente)
 HuellitasSV.API/swagger*.json
+
+# ===== Mobile (Expo / React Native) =====
+# Dependencias
+mobile/node_modules/
+
+# Expo / Metro
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.metro-health-check*
+
+# Nativos generados
+mobile/ios/
+mobile/android/
+mobile/.kotlin/
+
+# Certificados de firma
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.pem
+
+# Debug de npm
+npm-debug.*
+yarn-debug.*
+yarn-error.*

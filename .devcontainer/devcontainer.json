@@ -1,11 +1,17 @@
-// Entorno Codespaces para HuellitasSV Backend (.NET 10).
+// Entorno Codespaces para HuellitasSV (API .NET 10 + app movil Expo).
 // La base de datos es MonsterASP (nube); no se levanta SQL local.
 {
-  "name": "HuellitasSV Backend",
+  "name": "HuellitasSV",
   "image": "mcr.microsoft.com/dotnet/sdk:10.0",
-  "forwardPorts": [5299],
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "forwardPorts": [5299, 8081],
   "portsAttributes": {
-    "5299": { "label": "API HuellitasSV", "onAutoForward": "openBrowser" }
+    "5299": { "label": "API HuellitasSV", "onAutoForward": "openBrowser" },
+    "8081": { "label": "Metro (app movil)", "onAutoForward": "notify" }
   },
   "postCreateCommand": "bash .devcontainer/setup-sqlserver.sh",
   "customizations": {
@@ -13,7 +19,8 @@
       "extensions": [
         "ms-dotnettools.csharp",
         "ms-dotnettools.csdevkit",
-        "humao.rest-client"
+        "humao.rest-client",
+        "dbaeumer.vscode-eslint"
       ]
     }
   },

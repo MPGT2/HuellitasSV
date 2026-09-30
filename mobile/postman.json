@@ -1,0 +1,3409 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "HuellitasSV API",
+    "description": "API de mascotas y refugios — HuellitasSV",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/AdopcionGestion": {
+      "get": {
+        "tags": [
+          "AdopcionGestion"
+        ],
+        "parameters": [
+          {
+            "name": "refugioId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/AdopcionGestion/{id}/aprobar": {
+      "put": {
+        "tags": [
+          "AdopcionGestion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/AdopcionGestion/{id}/rechazar": {
+      "put": {
+        "tags": [
+          "AdopcionGestion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRefugioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/AdopcionSolicitudes/{id}": {
+      "get": {
+        "tags": [
+          "AdopcionSolicitudes"
+        ],
+        "summary": "Consulta el estado de una solicitud de adopción por su identificador.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la solicitud.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/AdopcionSolicitudes": {
+      "post": {
+        "tags": [
+          "AdopcionSolicitudes"
+        ],
+        "summary": "Envía una nueva solicitud de adopción para una mascota disponible.",
+        "description": "Reglas de negocio:\r\n- La mascota debe existir y estar en estado \"disponible\"; si ya fue reservada o adoptada,\r\n  se responde 409 Conflict para no generar solicitudes sobre mascotas no disponibles.\r\n- Si el mismo usuario ya tiene una solicitud \"Pendiente\" para la misma mascota, se rechaza\r\n  con 409 Conflict (evita duplicados).\r\n- La solicitud se crea en estado \"Pendiente\" y se notifica al refugio dueño de la mascota.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Anuncios": {
+      "get": {
+        "tags": [
+          "Anuncios"
+        ],
+        "summary": "Lista los anuncios. Por defecto solo devuelve los visibles para la comunidad:\r\nestado \"activo\", con pago confirmado y dentro de su rango de fechas.\r\nUse estado=pendiente, estado=vencido o estado=todas para la vista de administración.",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "activo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de anuncios."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Anuncios"
+        ],
+        "summary": "Registra la solicitud de una tienda para publicar un anuncio. Queda en\r\nestado \"pendiente\" hasta que el administrador la revise.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAnuncioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAnuncioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAnuncioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "201": {
+            "description": "Solicitud registrada."
+          },
+          "400": {
+            "description": "Datos inválidos (ej. fecha de fin anterior a la de inicio)."
+          }
+        }
+      }
+    },
+    "/api/Anuncios/{id}/aprobar": {
+      "post": {
+        "tags": [
+          "Anuncios"
+        ],
+        "summary": "Aprueba un anuncio pendiente. Criterio de aceptación: al aprobarlo, el sistema\r\nlo activa; queda realmente visible a los usuarios solo cuando además el pago\r\nesté confirmado y su fecha de inicio haya llegado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anuncio aprobado."
+          },
+          "400": {
+            "description": "El anuncio no está en estado \"pendiente\"."
+          },
+          "404": {
+            "description": "Anuncio no encontrado."
+          }
+        }
+      }
+    },
+    "/api/Anuncios/{id}/confirmar-pago": {
+      "post": {
+        "tags": [
+          "Anuncios"
+        ],
+        "summary": "Confirma el pago de un anuncio. Criterio de aceptación: si el pago no está\r\nconfirmado al llegar la fecha de activación, el anuncio no se publica hasta\r\nque se registre el pago mediante este endpoint.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pago confirmado."
+          },
+          "400": {
+            "description": "El anuncio ya está vencido."
+          },
+          "404": {
+            "description": "Anuncio no encontrado."
+          }
+        }
+      }
+    },
+    "/api/Anuncios/{id}/rechazar": {
+      "post": {
+        "tags": [
+          "Anuncios"
+        ],
+        "summary": "Rechaza un anuncio pendiente. No forma parte de los criterios de aceptación\r\noriginales, pero completa el flujo de administración (aprobar/rechazar).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anuncio rechazado."
+          },
+          "400": {
+            "description": "El anuncio no está en estado \"pendiente\"."
+          },
+          "404": {
+            "description": "Anuncio no encontrado."
+          }
+        }
+      }
+    },
+    "/api/GestionSolicitudes": {
+      "get": {
+        "tags": [
+          "GestionSolicitudes"
+        ],
+        "summary": "Obtiene las solicitudes de adopción de las mascotas de un refugio, con estado, mascota y datos del solicitante.",
+        "description": "Si no hay coincidencias se retorna una lista vacía (la interfaz muestra \"sin solicitudes pendientes\").",
+        "parameters": [
+          {
+            "name": "refugioId",
+            "in": "query",
+            "description": "Identificador del refugio (obligatorio).",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado: Pendiente, Aprobada o Rechazada (opcional).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudAdopcion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/GestionSolicitudes/{id}": {
+      "get": {
+        "tags": [
+          "GestionSolicitudes"
+        ],
+        "summary": "Obtiene una solicitud específica con los datos de la mascota y del solicitante.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la solicitud.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/GestionSolicitudes/{id}/aprobar": {
+      "put": {
+        "tags": [
+          "GestionSolicitudes"
+        ],
+        "summary": "Aprueba una solicitud pendiente: reserva la mascota (estado \"reservada\") y notifica al usuario.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la solicitud.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Refugio que decide y comentario opcional.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/GestionSolicitudes/{id}/rechazar": {
+      "put": {
+        "tags": [
+          "GestionSolicitudes"
+        ],
+        "summary": "Rechaza una solicitud pendiente: notifica al usuario y deja la mascota disponible\r\n(si no existe otra solicitud aprobada para ella).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la solicitud.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Refugio que decide y comentario opcional.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Mascotas": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Obtiene el catálogo público con todas las mascotas en estado \"disponible\".",
+        "responses": {
+          "200": {
+            "description": "Catálogo de mascotas disponibles (lista vacía si no hay resultados).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Registra una nueva mascota en estado \"disponible\" por defecto.\r\nAdmite envío multipart/form-data para incluir una imagen de la mascota.",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "EdadMeses",
+                  "Especie",
+                  "EstadoSalud",
+                  "IdRefugio",
+                  "Tamano"
+                ],
+                "type": "object",
+                "properties": {
+                  "IdRefugio": {
+                    "maximum": 9.223372036854776E+18,
+                    "minimum": 1,
+                    "type": "integer",
+                    "description": "Refugio que registra la mascota; debe existir en la base de datos.",
+                    "format": "int64"
+                  },
+                  "Nombre": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "Nombre de la mascota (opcional)."
+                  },
+                  "Especie": {
+                    "pattern": "^(?i)(perro|gato|otro)$",
+                    "type": "string",
+                    "description": "Especie: perro, gato u otro."
+                  },
+                  "Tamano": {
+                    "pattern": "^(?i)(pequeño|mediano|grande)$",
+                    "type": "string",
+                    "description": "Tamaño: pequeño, mediano o grande."
+                  },
+                  "EdadMeses": {
+                    "maximum": 300,
+                    "minimum": 1,
+                    "type": "integer",
+                    "description": "Edad en meses, entre 1 y 300.",
+                    "format": "int32"
+                  },
+                  "EstadoSalud": {
+                    "pattern": "^(?i)(sano|en_tratamiento|discapacidad|crónico)$",
+                    "type": "string",
+                    "description": "Estado de salud: sano, en_tratamiento, discapacidad o crónico."
+                  },
+                  "Imagen": {
+                    "type": "string",
+                    "description": "Imagen de la mascota (archivo subido en multipart/form-data).",
+                    "format": "binary"
+                  },
+                  "imagen": {
+                    "type": "string",
+                    "description": "Archivo de imagen de la mascota (opcional, multipart/form-data).",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "IdRefugio": {
+                  "style": "form"
+                },
+                "Nombre": {
+                  "style": "form"
+                },
+                "Especie": {
+                  "style": "form"
+                },
+                "Tamano": {
+                  "style": "form"
+                },
+                "EdadMeses": {
+                  "style": "form"
+                },
+                "EstadoSalud": {
+                  "style": "form"
+                },
+                "Imagen": {
+                  "style": "form"
+                },
+                "imagen": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Mascota registrada correctamente."
+          },
+          "400": {
+            "description": "Datos inválidos, refugio inexistente o error al procesar la imagen."
+          }
+        }
+      }
+    },
+    "/api/Mascotas/{id}": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Obtiene el detalle de una mascota por su identificador único.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador único de la mascota.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mascota encontrada.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mascota no encontrada."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Actualiza parcialmente una mascota o aplica una transición de estado.\r\nRegla de negocio: pasar de \"adoptada\" a \"disponible\" exige justificación y \"fallecida\" es irreversible.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador único de la mascota a actualizar.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Campos opcionales a modificar (Nombre, Especie, Tamano, EdadMeses, EstadoSalud, Estado y JustificacionCambioEstado).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarMascotaDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarMascotaDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarMascotaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mascota actualizada correctamente.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MascotaRespuestaDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Transición de estado no permitida."
+          },
+          "404": {
+            "description": "Mascota no encontrada."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Elimina físicamente una mascota del sistema.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador único de la mascota a eliminar.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mascota eliminada correctamente."
+          },
+          "404": {
+            "description": "Mascota no encontrada."
+          }
+        }
+      }
+    },
+    "/api/Mascotas/especie/{especie}": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-04] Obtiene únicamente las mascotas disponibles de la especie indicada.",
+        "parameters": [
+          {
+            "name": "especie",
+            "in": "path",
+            "description": "Especie a filtrar: perro, gato u otro.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mascotas de la especie (lista vacía si no hay resultados).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Mascotas/atributos": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-05] Filtra mascotas disponibles por atributos físicos y de salud.\r\nTodos los filtros son opcionales y combinables entre sí.",
+        "parameters": [
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño opcional de la mascota: pequeño, mediano o grande.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "edadMaxMeses",
+            "in": "query",
+            "description": "Edad máxima opcional expresada en meses.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "estadoSalud",
+            "in": "query",
+            "description": "Estado de salud opcional: sano, en_tratamiento, discapacidad o crónico.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mascotas filtrada (lista vacía si no hay resultados).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Mascotas/ubicacion": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-06] Filtra mascotas disponibles por la ubicación del refugio que las resguarda,\r\ncruzando las tablas Mascota y Refugio mediante Include(m => m.Refugio).\r\nRegla de negocio: si se envía el municipio, el departamento es obligatorio.",
+        "parameters": [
+          {
+            "name": "departamento",
+            "in": "query",
+            "description": "Departamento opcional del refugio.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "municipio",
+            "in": "query",
+            "description": "Municipio opcional del refugio; requiere el departamento.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mascotas con los datos del refugio (lista vacía si no hay resultados).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Se envió el municipio sin el departamento."
+          }
+        }
+      }
+    },
+    "/api/Mascotas/refugio/{idRefugio}": {
+      "get": {
+        "tags": [
+          "Mascotas"
+        ],
+        "summary": "[HU-09] Obtiene las mascotas registradas por un refugio, con filtro opcional por estado.",
+        "parameters": [
+          {
+            "name": "idRefugio",
+            "in": "path",
+            "description": "Identificador único del refugio.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado opcional: disponible, adoptada, fallecida, en_tratamiento o reservada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mascotas del refugio ordenada por fecha de registro descendente.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MascotaRespuestaDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/NecesidadesDonacion": {
+      "get": {
+        "tags": [
+          "NecesidadesDonacion"
+        ],
+        "summary": "Lista las necesidades de donación. Por defecto solo devuelve las \"activas\",\r\nque son las visibles para la comunidad. Use estado=todas para no filtrar.",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "activa"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de necesidades de donación."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "NecesidadesDonacion"
+        ],
+        "summary": "Publica una nueva necesidad urgente de insumos para un refugio.\r\nCriterio de aceptación: al completar tipo de insumo y cantidad requerida,\r\nla necesidad queda visible para los usuarios con estado \"activa\".",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarNecesidadDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarNecesidadDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarNecesidadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "201": {
+            "description": "Necesidad publicada."
+          },
+          "400": {
+            "description": "Datos inválidos o el refugio no existe."
+          }
+        }
+      }
+    },
+    "/api/NecesidadesDonacion/{id}/aportar": {
+      "post": {
+        "tags": [
+          "NecesidadesDonacion"
+        ],
+        "summary": "Registra un aporte de la comunidad hacia una necesidad de donación.\r\nCriterio de aceptación: cuando la cantidad cubierta alcanza la cantidad\r\nrequerida, el sistema marca la necesidad como \"cubierta\" automáticamente.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarAporteDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarAporteDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarAporteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aporte registrado."
+          },
+          "400": {
+            "description": "Cantidad inválida o la necesidad ya está cubierta."
+          },
+          "404": {
+            "description": "Necesidad no encontrada."
+          }
+        }
+      }
+    },
+    "/api/Notificaciones": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Obtiene las notificaciones de un refugio y/o de un usuario, ordenadas de más reciente a más antigua.",
+        "parameters": [
+          {
+            "name": "refugioId",
+            "in": "query",
+            "description": "Identificador del refugio destinatario (opcional).",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "usuarioId",
+            "in": "query",
+            "description": "Identificador del usuario destinatario (opcional).",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Notificacion"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Notificacion"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Notificacion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Notificaciones/{id}/leida": {
+      "put": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Marca una notificación como leída.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la notificación.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Refugios/{id}/mascotas": {
+      "get": {
+        "tags": [
+          "Refugios"
+        ],
+        "summary": "[HU-09] Devuelve las mascotas de un refugio, con filtro opcional por estado.\r\nPensado para el panel del refugio: si no se envía el parámetro, devuelve todas.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador del refugio.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado de la mascota (disponible, adoptada, etc.). Opcional.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Devuelve la lista de mascotas del refugio.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Si el refugio no existe.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Refugios/pendientes": {
+      "get": {
+        "tags": [
+          "Refugios"
+        ],
+        "summary": "[HU-24] Obtiene la lista de refugios cuyo estado de aprobación sea \"pendiente\",\r\npara que el administrador pueda revisarlos y aprobarlos o rechazarlos.",
+        "responses": {
+          "200": {
+            "description": "Devuelve la lista de refugios pendientes.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Refugios/registro": {
+      "post": {
+        "tags": [
+          "Refugios"
+        ],
+        "summary": "[HU-02] Registra un nuevo refugio: valida los campos obligatorios, que el correo\r\ny el nombre de la organización no existan, crea la cuenta con rol \"Refugio\"\r\ny deja el refugio en estado \"pendiente\" a la espera de aprobación (HU-24).",
+        "requestBody": {
+          "description": "Datos del refugio a registrar (JSON).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroRefugioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroRefugioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroRefugioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Refugio registrado correctamente (queda pendiente de aprobación).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Si los campos obligatorios no son válidos.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Si el correo o el nombre de la organización ya están registrados.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Refugios/login": {
+      "post": {
+        "tags": [
+          "Refugios"
+        ],
+        "summary": "[HU-02] Inicia sesión para un refugio validando sus credenciales (correo y contraseña)\r\ny su estado de aprobación: solo los refugios aprobados pueden acceder.",
+        "requestBody": {
+          "description": "Credenciales de la cuenta del refugio (JSON).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRefugioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRefugioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRefugioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticación exitosa.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Si las credenciales son incorrectas.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Si la cuenta existe pero el refugio no está aprobado.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Refugios/{id}/estado": {
+      "put": {
+        "tags": [
+          "Refugios"
+        ],
+        "summary": "[HU-24] Aprueba o rechaza un refugio cambiando su estado de aprobación.\r\nEl estado recibido se normaliza y solo se admite \"aprobado\" o \"rechazado\".",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador del refugio.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "DTO con el nuevo estado (\"aprobado\" o \"rechazado\").",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoRefugioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoRefugioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoRefugioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado correctamente.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Si el estado indicado no es válido.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Si el refugio no existe.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReporteCallejero/{id}": {
+      "get": {
+        "tags": [
+          "ReporteCallejero"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReporteCallejero": {
+      "post": {
+        "tags": [
+          "ReporteCallejero"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReporteCallejeroPanel": {
+      "get": {
+        "tags": [
+          "ReporteCallejeroPanel"
+        ],
+        "parameters": [
+          {
+            "name": "refugioId",
+            "in": "query",
+            "description": "Identificador del refugio (obligatorio).",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado: Pendiente o Atendido (opcional).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReporteCallejeroPanel/{id}/atender": {
+      "put": {
+        "tags": [
+          "ReporteCallejeroPanel"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtencionReporteRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtencionReporteRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtencionReporteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReportesAnimales/{id}": {
+      "get": {
+        "tags": [
+          "ReportesAnimales"
+        ],
+        "summary": "Obtiene un reporte de animal callejero por su identificador.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador del reporte.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReportesAnimales": {
+      "post": {
+        "tags": [
+          "ReportesAnimales"
+        ],
+        "summary": "Registra un reporte de perro o gato callejero y notifica a los refugios cercanos a la ubicación.",
+        "description": "Reglas de negocio:\r\n- La ubicación (latitud y longitud) es obligatoria: sin ella el sistema bloquea el reporte con 400.\r\n- La foto y la descripción también son obligatorias.\r\n- Al registrarse, el sistema calcula la distancia a cada refugio y notifica a los que estén\r\n  a 5 km o menos de la ubicación reportada.",
+        "requestBody": {
+          "description": "Datos del reporte: usuario, descripción, foto y ubicación.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAnimal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReportesRescate": {
+      "get": {
+        "tags": [
+          "ReportesRescate"
+        ],
+        "summary": "Obtiene el panel de reportes de rescate de un refugio: lista con foto, ubicación y estado.",
+        "description": "- Si el refugio tiene ubicación, solo se muestran los reportes a 5 km o menos de él.\r\n- Sin parámetro `estado` se muestran todos; con `estado=Pendiente` se obtiene la lista\r\n  de pendientes (los reportes atendidos dejan de aparecer en ella).\r\n- Si no hay coincidencias se retorna una lista vacía.",
+        "parameters": [
+          {
+            "name": "refugioId",
+            "in": "query",
+            "description": "Identificador del refugio (obligatorio).",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado: Pendiente o Atendido (opcional).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteAnimal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReportesRescate/{id}": {
+      "get": {
+        "tags": [
+          "ReportesRescate"
+        ],
+        "summary": "Obtiene un reporte de rescate por su identificador, con el refugio que lo atendió si corresponde.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador del reporte.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ReportesRescate/{id}/atendido": {
+      "put": {
+        "tags": [
+          "ReportesRescate"
+        ],
+        "summary": "Marca un reporte como \"atendido\": actualiza su estado y lo retira de la lista de pendientes.",
+        "description": "El reporte queda asociado al refugio que confirmó la atención.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador del reporte.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Refugio que atiende el reporte.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAtencionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAtencionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReporteAtencionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteAnimal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/SolicitudesAdopcion/{id}": {
+      "get": {
+        "tags": [
+          "SolicitudesAdopcion"
+        ],
+        "summary": "Obtiene una solicitud de adopción por su identificador, para que el usuario siga su estado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identificador de la solicitud.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/SolicitudesAdopcion": {
+      "post": {
+        "tags": [
+          "SolicitudesAdopcion"
+        ],
+        "summary": "Registra una nueva solicitud de adopción con estado \"Pendiente\" y notifica al refugio.",
+        "description": "Reglas de negocio:\r\n- Si el usuario ya tiene una solicitud pendiente para la misma mascota, se responde 409 Conflict.\r\n- Si la mascota ya tiene una adopción aprobada (HU-8), la solicitud se crea rechazada automáticamente\r\n  y se notifica al usuario que la mascota ya no está disponible.\r\n- En caso normal, la solicitud se crea en estado \"Pendiente\" y se notifica al refugio.",
+        "requestBody": {
+          "description": "Datos de la solicitud: mascota, usuario y datos de contacto confirmados.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAdopcion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudAdopcion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Usuarios/registro": {
+      "post": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "[HU-01] Registra un nuevo usuario cliente: valida los campos obligatorios,\r\nque el correo no exista en el sistema y crea la cuenta con rol \"Usuario\"\r\ny estado \"activo\", confirmando el registro de inmediato.",
+        "requestBody": {
+          "description": "Datos del usuario a registrar (JSON): nombre, correo y contraseña.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroUsuarioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroUsuarioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroUsuarioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario registrado correctamente.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Si algún campo obligatorio está vacío o mal formado.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Si el correo ya está registrado.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Usuarios/login": {
+      "post": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "[HU-01] Inicia sesión para un usuario cliente validando sus credenciales.\r\nSi las credenciales son incorrectas responde con un error genérico (sin\r\nindicar qué campo falló); si la cuenta está inactiva o bloqueada, deniega\r\nel acceso informando el motivo.",
+        "requestBody": {
+          "description": "Credenciales del usuario (JSON): correo y contraseña.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUsuarioDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUsuarioDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUsuarioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticación exitosa.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Si las credenciales son incorrectas (error genérico).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Si la cuenta está inactiva o bloqueada (se informa el motivo).",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActionResult": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "ActualizarMascotaDto": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 100,
+            "type": "string",
+            "description": "Nombre de la mascota.",
+            "nullable": true
+          },
+          "especie": {
+            "pattern": "^(?i)(perro|gato|otro)$",
+            "type": "string",
+            "description": "Especie: perro, gato u otro.",
+            "nullable": true
+          },
+          "tamano": {
+            "pattern": "^(?i)(pequeño|mediano|grande)$",
+            "type": "string",
+            "description": "Tamaño: pequeño, mediano o grande.",
+            "nullable": true
+          },
+          "edadMeses": {
+            "maximum": 300,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Edad en meses, entre 1 y 300.",
+            "format": "int32",
+            "nullable": true
+          },
+          "estadoSalud": {
+            "pattern": "^(?i)(sano|en_tratamiento|discapacidad|crónico)$",
+            "type": "string",
+            "description": "Estado de salud: sano, en_tratamiento, discapacidad o crónico.",
+            "nullable": true
+          },
+          "estado": {
+            "pattern": "^(?i)(disponible|adoptada|fallecida|en_tratamiento|reservada)$",
+            "type": "string",
+            "description": "Estado: disponible, adoptada, fallecida, en_tratamiento o reservada.",
+            "nullable": true
+          },
+          "justificacionCambioEstado": {
+            "type": "string",
+            "description": "Justificación exigida por la regla de negocio al pasar de 'adoptada' a 'disponible'.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos para actualizar una mascota; solo se modifican los campos enviados.",
+        "example": {
+          "nombre": "Firulais",
+          "estado": "adoptada",
+          "justificacionCambioEstado": "Adoptada por una familia responsable."
+        }
+      },
+      "AtencionReporteRequest": {
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CambiarEstadoRefugioDto": {
+        "required": [
+          "estado"
+        ],
+        "type": "object",
+        "properties": {
+          "estado": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Nuevo estado: \"aprobado\" o \"rechazado\"."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Nuevo estado de aprobación para un refugio (HU-24).",
+        "example": {
+          "estado": "aprobado"
+        }
+      },
+      "CrearAnuncioDto": {
+        "required": [
+          "fechaFin",
+          "fechaInicio",
+          "nombreTienda",
+          "precio"
+        ],
+        "type": "object",
+        "properties": {
+          "nombreTienda": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Nombre de la tienda que solicita el espacio."
+          },
+          "contactoTienda": {
+            "maxLength": 150,
+            "type": "string",
+            "description": "Correo o teléfono de contacto de la tienda (opcional).",
+            "nullable": true
+          },
+          "imagenUrl": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "URL de la imagen/banner del anuncio (opcional).",
+            "nullable": true
+          },
+          "descripcion": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "Descripción breve del anuncio (opcional).",
+            "nullable": true
+          },
+          "precio": {
+            "maximum": 7.922816251426434E+28,
+            "minimum": 0.01,
+            "type": "number",
+            "description": "Monto a cobrar por el espacio publicitario.",
+            "format": "double"
+          },
+          "fechaInicio": {
+            "type": "string",
+            "description": "Fecha en que el anuncio debe empezar a mostrarse.",
+            "format": "date-time"
+          },
+          "fechaFin": {
+            "type": "string",
+            "description": "Fecha en que el anuncio debe dejar de mostrarse.",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos requeridos para que una tienda solicite publicar un anuncio."
+      },
+      "DecisionRefugioRequest": {
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "comentarioDecision": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRefugioDto": {
+        "required": [
+          "contrasena",
+          "correo"
+        ],
+        "type": "object",
+        "properties": {
+          "correo": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Correo de la cuenta del refugio.",
+            "format": "email"
+          },
+          "contrasena": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Contraseña de la cuenta del refugio."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Credenciales para el inicio de sesión de un refugio (HU-02).",
+        "example": {
+          "correo": "contacto@huellitassv.org",
+          "contrasena": "Refugio2026!"
+        }
+      },
+      "LoginUsuarioDto": {
+        "required": [
+          "contrasena",
+          "correo"
+        ],
+        "type": "object",
+        "properties": {
+          "correo": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Correo de la cuenta.",
+            "format": "email"
+          },
+          "contrasena": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Contraseña de la cuenta."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Credenciales para el inicio de sesión de un usuario cliente (HU-01).",
+        "example": {
+          "correo": "marialopez@correo.com",
+          "contrasena": "Usuario2026!"
+        }
+      },
+      "Mascota": {
+        "required": [
+          "edadMeses",
+          "especie",
+          "estado",
+          "estadoSalud",
+          "fechaRegistro",
+          "idRefugio",
+          "tamano"
+        ],
+        "type": "object",
+        "properties": {
+          "idMascota": {
+            "type": "integer",
+            "description": "Identificador único (identity).",
+            "format": "int64"
+          },
+          "idRefugio": {
+            "type": "integer",
+            "description": "Refugio al que pertenece (FK, borrado restrictivo).",
+            "format": "int64"
+          },
+          "nombre": {
+            "maxLength": 100,
+            "type": "string",
+            "description": "Nombre de la mascota.",
+            "nullable": true
+          },
+          "especie": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string",
+            "description": "Especie: perro, gato u otro."
+          },
+          "tamano": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string",
+            "description": "Tamaño: pequeño, mediano o grande."
+          },
+          "edadMeses": {
+            "type": "integer",
+            "description": "Edad expresada en meses.",
+            "format": "int32"
+          },
+          "estadoSalud": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string",
+            "description": "Estado de salud: sano, en_tratamiento, discapacidad o crónico."
+          },
+          "estado": {
+            "maxLength": 30,
+            "minLength": 1,
+            "type": "string",
+            "description": "Estado: disponible, adoptada, fallecida, en_tratamiento o reservada."
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "description": "Fecha de registro (UTC).",
+            "format": "date-time"
+          },
+          "imagenUrl": {
+            "maxLength": 500,
+            "type": "string",
+            "description": "URL externa de la imagen (alternativa al BLOB).",
+            "nullable": true
+          },
+          "imagenData": {
+            "type": "string",
+            "description": "Imagen almacenada como BLOB en la base de datos.",
+            "format": "byte",
+            "nullable": true
+          },
+          "imagenContentType": {
+            "maxLength": 50,
+            "type": "string",
+            "description": "Tipo MIME de la imagen almacenada (image/jpeg, image/png, etc.).",
+            "nullable": true
+          },
+          "refugio": {
+            "$ref": "#/components/schemas/Refugio"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Entidad que representa una mascota en HuellitasSV."
+      },
+      "MascotaRespuestaDto": {
+        "type": "object",
+        "properties": {
+          "idMascota": {
+            "type": "integer",
+            "description": "Identificador único de la mascota.",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre de la mascota.",
+            "nullable": true
+          },
+          "especie": {
+            "type": "string",
+            "description": "Especie de la mascota: perro, gato u otro.",
+            "nullable": true
+          },
+          "tamano": {
+            "type": "string",
+            "description": "Tamaño de la mascota: pequeño, mediano o grande.",
+            "nullable": true
+          },
+          "edadMeses": {
+            "type": "integer",
+            "description": "Edad de la mascota expresada en meses.",
+            "format": "int32"
+          },
+          "estadoSalud": {
+            "type": "string",
+            "description": "Estado de salud: sano, en_tratamiento, discapacidad o crónico.",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado de adopción: disponible, adoptada, fallecida, en_tratamiento o reservada.",
+            "nullable": true
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "description": "Fecha de registro de la mascota (UTC).",
+            "format": "date-time"
+          },
+          "imagenUrl": {
+            "type": "string",
+            "description": "URL externa de la imagen de la mascota, si existe.",
+            "nullable": true
+          },
+          "refugio": {
+            "$ref": "#/components/schemas/RefugioRespuestaDto"
+          }
+        },
+        "additionalProperties": false,
+        "description": "DTO de respuesta con los datos públicos de una mascota.\r\nEvita el ciclo infinito de JSON al incluir el refugio y oculta el BLOB de la imagen."
+      },
+      "Notificacion": {
+        "type": "object",
+        "properties": {
+          "idNotificacion": {
+            "type": "integer",
+            "description": "Identificador único de la notificación.",
+            "format": "int32"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje de la notificación (ej.: \"Nueva solicitud de adopción para Firulais\").",
+            "nullable": true
+          },
+          "idRefugio": {
+            "type": "integer",
+            "description": "Identificador del refugio destinatario. Nulo si la notificación es para un usuario.",
+            "format": "int64",
+            "nullable": true
+          },
+          "idUsuario": {
+            "type": "integer",
+            "description": "Identificador del usuario destinatario. Nulo si la notificación es para un refugio.",
+            "format": "int64",
+            "nullable": true
+          },
+          "leida": {
+            "type": "boolean",
+            "description": "Indica si la notificación ya fue leída por su destinatario."
+          },
+          "fechaCreacion": {
+            "type": "string",
+            "description": "Fecha y hora de creación de la notificación en UTC.",
+            "format": "date-time"
+          },
+          "refugio": {
+            "$ref": "#/components/schemas/Refugio"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Notificación enviada a un refugio o a un usuario sobre un reporte o una solicitud de adopción."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "PublicarNecesidadDto": {
+        "required": [
+          "cantidadRequerida",
+          "idRefugio",
+          "tipoInsumo"
+        ],
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "maximum": 9.223372036854776E+18,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Refugio que publica la necesidad; debe existir en la base de datos.",
+            "format": "int64"
+          },
+          "tipoInsumo": {
+            "minLength": 1,
+            "pattern": "^(?i)(alimento|medicina|manta|accesorio)$",
+            "type": "string",
+            "description": "Tipo de insumo: alimento, medicina, manta o accesorio."
+          },
+          "descripcion": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "Detalle adicional del insumo requerido (opcional).",
+            "nullable": true
+          },
+          "cantidadRequerida": {
+            "maximum": 7.922816251426434E+28,
+            "minimum": 0.01,
+            "type": "number",
+            "description": "Cantidad total requerida para cubrir la necesidad.",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos requeridos para que un refugio publique una necesidad de donación."
+      },
+      "Refugio": {
+        "required": [
+          "contacto",
+          "departamento",
+          "estadoAprobacion",
+          "idCuenta",
+          "municipio",
+          "nombreOrganizacion"
+        ],
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "type": "integer",
+            "description": "Identificador único (identity).",
+            "format": "int64"
+          },
+          "idCuenta": {
+            "type": "integer",
+            "description": "Cuenta de usuario asociada al refugio.",
+            "format": "int64"
+          },
+          "nombreOrganizacion": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string",
+            "description": "Nombre de la organización."
+          },
+          "departamento": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Departamento donde se ubica."
+          },
+          "municipio": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Municipio donde se ubica."
+          },
+          "contacto": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string",
+            "description": "Información de contacto."
+          },
+          "documentacionUrl": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "URL de documentación de respaldo (opcional).",
+            "nullable": true
+          },
+          "latitud": {
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number",
+            "description": "Latitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).",
+            "format": "double",
+            "nullable": true
+          },
+          "longitud": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number",
+            "description": "Longitud geográfica del refugio. Permite calcular los refugios cercanos de un reporte (HU-14/HU-15).",
+            "format": "double",
+            "nullable": true
+          },
+          "estadoAprobacion": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string",
+            "description": "Estado de aprobación: pendiente, aprobado o rechazado."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Entidad que representa un refugio de animales en HuellitasSV."
+      },
+      "RefugioRespuestaDto": {
+        "type": "object",
+        "properties": {
+          "nombreOrganizacion": {
+            "type": "string",
+            "description": "Nombre de la organización del refugio.",
+            "nullable": true
+          },
+          "departamento": {
+            "type": "string",
+            "description": "Departamento donde se ubica el refugio.",
+            "nullable": true
+          },
+          "municipio": {
+            "type": "string",
+            "description": "Municipio donde se ubica el refugio.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "DTO de respuesta con los datos públicos de ubicación de un refugio."
+      },
+      "RegistrarAporteDto": {
+        "required": [
+          "cantidad"
+        ],
+        "type": "object",
+        "properties": {
+          "cantidad": {
+            "maximum": 7.922816251426434E+28,
+            "minimum": 0.01,
+            "type": "number",
+            "description": "Cantidad aportada; debe ser mayor a 0.",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Cantidad aportada por un donante hacia una necesidad de donación activa."
+      },
+      "RegistroRefugioDto": {
+        "required": [
+          "contacto",
+          "contrasena",
+          "correo",
+          "departamento",
+          "municipio",
+          "nombreOrganizacion"
+        ],
+        "type": "object",
+        "properties": {
+          "nombreOrganizacion": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Nombre de la organización del refugio."
+          },
+          "correo": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Correo de la cuenta del refugio (debe ser único).",
+            "format": "email"
+          },
+          "contrasena": {
+            "minLength": 8,
+            "type": "string",
+            "description": "Contraseña de la cuenta del refugio."
+          },
+          "departamento": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Departamento donde se ubica el refugio."
+          },
+          "municipio": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Municipio donde se ubica el refugio."
+          },
+          "contacto": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Información de contacto del refugio."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos requeridos para registrar un nuevo refugio (HU-02).",
+        "example": {
+          "nombreOrganizacion": "Refugio Patitas Soyapango",
+          "correo": "patitas@refugio.org",
+          "contrasena": "Refugio2026!",
+          "departamento": "San Salvador",
+          "municipio": "Soyapango",
+          "contacto": "2222-0000"
+        }
+      },
+      "RegistroUsuarioDto": {
+        "required": [
+          "contrasena",
+          "correo",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Nombre completo del usuario."
+          },
+          "correo": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string",
+            "description": "Correo de la cuenta (debe ser único en el sistema).",
+            "format": "email"
+          },
+          "contrasena": {
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string",
+            "description": "Contraseña de la cuenta (mínimo 8 caracteres)."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos requeridos para registrar un nuevo usuario cliente (HU-01).",
+        "example": {
+          "nombre": "María López",
+          "correo": "maria.lopez@correo.com",
+          "contrasena": "Usuario2026!"
+        }
+      },
+      "ReporteAnimal": {
+        "required": [
+          "descripcion",
+          "fotoUrl",
+          "latitud",
+          "longitud"
+        ],
+        "type": "object",
+        "properties": {
+          "idReporte": {
+            "type": "integer",
+            "description": "Identificador único del reporte.",
+            "format": "int32"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "description": "Identificador del usuario que envía el reporte.",
+            "format": "int64"
+          },
+          "idRefugio": {
+            "type": "integer",
+            "description": "Identificador del refugio que atendió el reporte. Nulo mientras el reporte está pendiente.",
+            "format": "int64",
+            "nullable": true
+          },
+          "descripcion": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string",
+            "description": "Descripción del animal y su situación."
+          },
+          "fotoUrl": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string",
+            "description": "URL o ruta de la foto del animal reportado."
+          },
+          "latitud": {
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number",
+            "description": "Latitud de donde fue visto el animal. Es obligatoria: sin ubicación no se puede alertar a los refugios cercanos.",
+            "format": "double"
+          },
+          "longitud": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number",
+            "description": "Longitud de donde fue visto el animal. Es obligatoria: sin ubicación no se puede alertar a los refugios cercanos.",
+            "format": "double"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/ReporteEstado"
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "description": "Fecha y hora de creación del reporte en UTC.",
+            "format": "date-time"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          "refugio": {
+            "$ref": "#/components/schemas/Refugio"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Reporte de un perro o gato en situación de calle, enviado por un usuario para alertar a los refugios cercanos (HU-14)."
+      },
+      "ReporteAtencionRequest": {
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "type": "integer",
+            "description": "Identificador del refugio que atiende el reporte.",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos enviados por el refugio al confirmar la atención de un reporte de rescate."
+      },
+      "ReporteEstado": {
+        "enum": [
+          "Pendiente",
+          "Atendido"
+        ],
+        "type": "string",
+        "description": "Estados posibles de un reporte de animal callejero. Se almacenan como texto en la base de datos."
+      },
+      "SolicitudAdopcion": {
+        "required": [
+          "correoContacto",
+          "nombreContacto",
+          "telefonoContacto"
+        ],
+        "type": "object",
+        "properties": {
+          "idSolicitud": {
+            "type": "integer",
+            "description": "Identificador único de la solicitud.",
+            "format": "int32"
+          },
+          "idMascota": {
+            "type": "integer",
+            "description": "Identificador de la mascota que se desea adoptar (clave de la tabla mascota).",
+            "format": "int64"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "description": "Identificador del usuario solicitante (adoptante).",
+            "format": "int64"
+          },
+          "nombreContacto": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Nombre de contacto confirmado por el usuario al enviar la solicitud."
+          },
+          "telefonoContacto": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string",
+            "description": "Teléfono de contacto confirmado por el usuario."
+          },
+          "correoContacto": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string",
+            "description": "Correo de contacto confirmado por el usuario.",
+            "format": "email"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/SolicitudEstado"
+          },
+          "comentarioDecision": {
+            "type": "string",
+            "description": "Comentario del refugio al aprobar o rechazar la solicitud.",
+            "nullable": true
+          },
+          "fechaSolicitud": {
+            "type": "string",
+            "description": "Fecha y hora de envío de la solicitud en UTC.",
+            "format": "date-time"
+          },
+          "mascota": {
+            "$ref": "#/components/schemas/Mascota"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Solicitud de adopción enviada por un usuario para una mascota publicada por un refugio."
+      },
+      "SolicitudDecisionRequest": {
+        "type": "object",
+        "properties": {
+          "idRefugio": {
+            "type": "integer",
+            "description": "Identificador del refugio que toma la decisión (debe ser dueño de la mascota).",
+            "format": "int64"
+          },
+          "comentarioDecision": {
+            "type": "string",
+            "description": "Comentario opcional para el solicitante.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Datos enviados por el refugio al aprobar o rechazar una solicitud de adopción."
+      },
+      "SolicitudEstado": {
+        "enum": [
+          "Pendiente",
+          "Aprobada",
+          "Rechazada"
+        ],
+        "type": "string",
+        "description": "Estados posibles de una solicitud de adopción. Se almacenan como texto en la base de datos."
+      },
+      "Usuario": {
+        "required": [
+          "idCuenta",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "idUsuario": {
+            "type": "integer",
+            "description": "Identificador único (identity).",
+            "format": "int64"
+          },
+          "idCuenta": {
+            "type": "integer",
+            "description": "Cuenta de acceso asociada al perfil (FK lógica hacia cuenta).",
+            "format": "int64"
+          },
+          "nombre": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Nombre completo del usuario."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Perfil de un usuario registrado en el sistema HuellitasSV. Las credenciales de acceso\r\n(correo y contraseña) se almacenan en la entidad Cuenta vinculada por IdCuenta."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "AdopcionGestion"
+    },
+    {
+      "name": "AdopcionSolicitudes"
+    },
+    {
+      "name": "Anuncios"
+    },
+    {
+      "name": "GestionSolicitudes"
+    },
+    {
+      "name": "Mascotas"
+    },
+    {
+      "name": "NecesidadesDonacion"
+    },
+    {
+      "name": "Notificaciones"
+    },
+    {
+      "name": "Refugios"
+    },
+    {
+      "name": "ReporteCallejero"
+    },
+    {
+      "name": "ReporteCallejeroPanel"
+    },
+    {
+      "name": "ReportesAnimales"
+    },
+    {
+      "name": "ReportesRescate"
+    },
+    {
+      "name": "SolicitudesAdopcion"
+    },
+    {
+      "name": "Usuarios"
+    }
+  ]
+}
