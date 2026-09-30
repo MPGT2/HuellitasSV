@@ -33,6 +33,42 @@ public class ReportesAnimalesController : ControllerBase
     }
 
     /// <summary>
+    /// Obtiene todos los reportes de animal callejero del usuario autenticado.
+    /// </summary>
+    /// <param name="estado">Filtro opcional por estado: Pendiente, Atendido.</param>
+    /// <returns>Lista de reportes del usuario ordenada por fecha descendente.</returns>
+    /// <response code="200">Lista de reportes del usuario.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ReporteAnimal>>> GetMisReportes([FromQuery] string? estado)
+    {
+        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+            ? idUsuarioClaim
+            : 0;
+
+        if (idUsuarioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+        var query = _context.ReportesAnimales
+            .Where(r => r.IdUsuario == idUsuarioToken)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            if (Enum.TryParse<ReporteEstado>(estado, ignoreCase: true, out var estadoEnum))
+            {
+                query = query.Where(r => r.Estado == estadoEnum);
+            }
+        }
+
+        var reportes = await query
+            .OrderByDescending(r => r.FechaRegistro)
+            .ToListAsync();
+
+        return Ok(reportes);
+    }
+
+    /// <summary>
     /// Obtiene un reporte de animal callejero por su identificador.
     /// </summary>
     /// <param name="id">Identificador del reporte.</param>

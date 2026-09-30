@@ -26,15 +26,23 @@ public class Cuenta
     [Column("contrasena")]
     public string Contrasena { get; set; } = string.Empty;
 
-    /// <summary>Rol de la cuenta: Refugio o Admin.</summary>
+    /// <summary>Rol de la cuenta: Refugio, Admin o Usuario.</summary>
     [Required]
     [MaxLength(20)]
     [Column("rol")]
     public string Rol { get; set; } = "Refugio";
 
-    /// <summary>Estado de la cuenta: pendiente, aprobado o rechazado.</summary>
+    /// <summary>Estado de la cuenta: pendiente, aprobado, rechazado, activo, inactivo o bloqueado.</summary>
     [Required]
     [MaxLength(20)]
     [Column("estado")]
     public string Estado { get; set; } = "pendiente";
+
+    /// <summary>Navegación al perfil de usuario asociado (si el rol es Usuario).</summary>
+    [ForeignKey(nameof(IdCuenta))]
+    public Usuario? Usuario { get; set; }
+
+    /// <summary>Navegación al refugio asociado (si el rol es Refugio).</summary>
+    [ForeignKey(nameof(IdCuenta))]
+    public Refugio? Refugio { get; set; }
 }

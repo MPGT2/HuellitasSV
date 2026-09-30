@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
 
@@ -103,6 +104,204 @@ namespace HuellitasSV.API.Controllers
                 .ToListAsync();
 
             return Ok(refugios);
+        }
+
+        /// <summary>
+        /// Obtiene el perfil del refugio autenticado.
+        /// </summary>
+        /// <returns>Perfil del refugio.</returns>
+        /// <response code="200">Perfil del refugio.</response>
+        /// <response code="404">Refugio no encontrado.</response>
+        [HttpGet("perfil")]
+        [Authorize(Roles = "Refugio")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetPerfil()
+        {
+            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+                ? idRefugioClaim
+                : 0;
+
+            if (idRefugioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
+            var refugio = await _context.Refugio
+                .Include(r => r.Cuenta)
+                .FirstOrDefaultAsync(r => r.IdRefugio == idRefugioToken);
+
+            if (refugio == null)
+                return NotFound(new { error = "Refugio no encontrado." });
+
+            return Ok(new
+            {
+                refugio.IdRefugio,
+                refugio.NombreOrganizacion,
+                refugio.Departamento,
+                refugio.Municipio,
+                refugio.Contacto,
+                refugio.DocumentacionUrl,
+                refugio.Latitud,
+                refugio.Longitud,
+                refugio.EstadoAprobacion,
+                Correo = refugio.Cuenta?.Correo,
+                Rol = refugio.Cuenta?.Rol,
+                EstadoCuenta = refugio.Cuenta?.Estado
+            });
+        }
+
+        /// <summary>
+        /// Lista todos los refugios (solo para administradores).
+        /// </summary>
+        /// <returns>Lista de todos los refugios.</returns>
+        /// <response code="200">Lista de refugios.</response>
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<Refugio>>> GetAll()
+        {
+            var refugios = await _context.Refugio
+                .Include(r => r.Cuenta)
+                .OrderBy(r => r.NombreOrganizacion)
+                .ToListAsync();
+
+            return Ok(refugios);
+        }
+
+        /// <summary>
+        /// Actualiza el perfil del refugio autenticado.
+        /// </summary>
+        /// <param name="dto">Datos a actualizar.</param>
+        /// <returns>Perfil actualizado.</returns>
+        /// <response code="200">Perfil actualizado correctamente.</response>
+        /// <response code="400">Datos inválidos.</response>
+        /// <response code="404">Refugio no encontrado.</response>
+        [HttpPut("perfil")]
+        [Authorize(Roles = "Refugio")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> ActualizarPerfil(ActualizarPerfilRefugioDto dto)
+        {
+            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+                ? idRefugioClaim
+                : 0;
+
+            if (idRefugioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
+            var refugio = await _context.Refugio
+                .Include(r => r.Cuenta)
+                .FirstOrDefaultAsync(r => r.IdRefugio == idRefugioToken);
+
+            if (refugio == null)
+                return NotFound(new { error = "Refugio no encontrado." });
+
+            if (!string.IsNullOrEmpty(dto.NombreOrganizacion))
+            {
+                var nombre = dto.NombreOrganizacion.Trim();
+                var existeNombre = await _context.Refugio.AnyAsync(r => r.NombreOrganizacion == nombre && r.IdRefugio != refugio.IdRefugio);
+                if (existeNombre)
+                    return BadRequest(new { error = "El nombre de la organización ya está registrado." });
+
+                refugio.NombreOrganizacion = nombre;
+            }
+
+            if (!string.IsNullOrEmpty(dto.Departamento))
+                refugio.Departamento = dto.Departamento.Trim();
+
+            if (!string.IsNullOrEmpty(dto.Municipio))
+                refugio.Municipio = dto.Municipio.Trim();
+
+            if (!string.IsNullOrEmpty(dto.Contacto))
+                refugio.Contacto = dto.Contacto.Trim();
+
+            if (dto.Latitud.HasValue)
+            {
+                if (dto.Latitud < -90 || dto.Latitud > 90)
+                    return BadRequest(new { error = "La latitud debe estar entre -90 y 90." });
+                refugio.Latitud = dto.Latitud;
+            }
+
+            if (dto.Longitud.HasValue)
+            {
+                if (dto.Longitud < -180 || dto.Longitud > 180)
+                    return BadRequest(new { error = "La longitud debe estar entre -180 y 180." });
+                refugio.Longitud = dto.Longitud;
+            }
+
+            if (!string.IsNullOrEmpty(dto.DocumentacionUrl))
+                refugio.DocumentacionUrl = dto.DocumentacionUrl;
+
+            var cuenta = refugio.Cuenta;
+            if (cuenta != null && !string.IsNullOrEmpty(dto.Correo))
+            {
+                var nuevoCorreo = dto.Correo.Trim().ToLowerInvariant();
+                var existeCorreo = await _context.Cuenta.AnyAsync(c => c.Correo == nuevoCorreo && c.IdCuenta != cuenta.IdCuenta);
+                if (existeCorreo)
+                    return BadRequest(new { error = "El correo ya está registrado por otra cuenta." });
+
+                cuenta.Correo = nuevoCorreo;
+            }
+
+            if (cuenta != null && !string.IsNullOrEmpty(dto.Contrasena))
+            {
+                if (dto.Contrasena.Length < 8)
+                    return BadRequest(new { error = "La contraseña debe tener al menos 8 caracteres." });
+
+                cuenta.Contrasena = _hasher.HashPassword(cuenta, dto.Contrasena);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = "Perfil actualizado correctamente.",
+                refugio.IdRefugio,
+                refugio.NombreOrganizacion,
+                refugio.Departamento,
+                refugio.Municipio,
+                refugio.Contacto,
+                refugio.DocumentacionUrl,
+                refugio.Latitud,
+                refugio.Longitud,
+                refugio.EstadoAprobacion,
+                Correo = cuenta?.Correo
+            });
+        }
+
+        /// <summary>
+        /// Desactiva el refugio autenticado (soft delete - cambia estado de la cuenta a inactivo).
+        /// </summary>
+        /// <returns>Confirmación de desactivación.</returns>
+        /// <response code="200">Refugio desactivado correctamente.</response>
+        /// <response code="404">Refugio no encontrado.</response>
+        [HttpDelete("perfil")]
+        [Authorize(Roles = "Refugio")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> EliminarPerfil()
+        {
+            var idRefugioToken = long.TryParse(User.FindFirstValue("idRefugio"), out var idRefugioClaim)
+                ? idRefugioClaim
+                : 0;
+
+            if (idRefugioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el refugio asociado." });
+
+            var refugio = await _context.Refugio
+                .Include(r => r.Cuenta)
+                .FirstOrDefaultAsync(r => r.IdRefugio == idRefugioToken);
+
+            if (refugio == null)
+                return NotFound(new { error = "Refugio no encontrado." });
+
+            var cuenta = refugio.Cuenta;
+            if (cuenta != null)
+                cuenta.Estado = "inactivo";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { mensaje = "Refugio desactivado correctamente." });
         }
 
         // ============================================================
@@ -386,5 +585,49 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Nuevo estado: "aprobado" o "rechazado".</summary>
         [Required]
         public string Estado { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Datos para actualizar el perfil del refugio autenticado.
+    /// </summary>
+    public class ActualizarPerfilRefugioDto
+    {
+        /// <summary>Nuevo nombre de la organización (opcional).</summary>
+        [MaxLength(150, ErrorMessage = "El nombre no puede exceder 150 caracteres.")]
+        public string? NombreOrganizacion { get; set; }
+
+        /// <summary>Nuevo departamento (opcional).</summary>
+        [MaxLength(100, ErrorMessage = "El departamento no puede exceder 100 caracteres.")]
+        public string? Departamento { get; set; }
+
+        /// <summary>Nuevo municipio (opcional).</summary>
+        [MaxLength(100, ErrorMessage = "El municipio no puede exceder 100 caracteres.")]
+        public string? Municipio { get; set; }
+
+        /// <summary>Nueva información de contacto (opcional).</summary>
+        [MaxLength(150, ErrorMessage = "El contacto no puede exceder 150 caracteres.")]
+        public string? Contacto { get; set; }
+
+        /// <summary>Nueva URL de documentación (opcional).</summary>
+        [MaxLength(255, ErrorMessage = "La URL no puede exceder 255 caracteres.")]
+        public string? DocumentacionUrl { get; set; }
+
+        /// <summary>Nueva latitud (opcional).</summary>
+        [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+        public double? Latitud { get; set; }
+
+        /// <summary>Nueva longitud (opcional).</summary>
+        [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+        public double? Longitud { get; set; }
+
+        /// <summary>Nuevo correo de la cuenta (opcional).</summary>
+        [EmailAddress(ErrorMessage = "El correo no tiene un formato válido.")]
+        [MaxLength(150, ErrorMessage = "El correo no puede exceder 150 caracteres.")]
+        public string? Correo { get; set; }
+
+        /// <summary>Nueva contraseña de la cuenta (opcional, mínimo 8 caracteres).</summary>
+        [MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres.")]
+        [MaxLength(255, ErrorMessage = "La contraseña no puede exceder 255 caracteres.")]
+        public string? Contrasena { get; set; }
     }
 }

@@ -29,6 +29,43 @@ public class SolicitudesAdopcionController : ControllerBase
     }
 
     /// <summary>
+    /// Obtiene todas las solicitudes de adopción del usuario autenticado.
+    /// </summary>
+    /// <param name="estado">Filtro opcional por estado: Pendiente, Aprobada, Rechazada.</param>
+    /// <returns>Lista de solicitudes del usuario ordenada por fecha descendente.</returns>
+    /// <response code="200">Lista de solicitudes del usuario.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<SolicitudAdopcion>>> GetMisSolicitudes([FromQuery] string? estado)
+    {
+        var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+            ? idUsuarioClaim
+            : 0;
+
+        if (idUsuarioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+        var query = _context.SolicitudesAdopcion
+            .Where(s => s.IdUsuario == idUsuarioToken)
+            .Include(s => s.Mascota)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            if (Enum.TryParse<SolicitudEstado>(estado, ignoreCase: true, out var estadoEnum))
+            {
+                query = query.Where(s => s.Estado == estadoEnum);
+            }
+        }
+
+        var solicitudes = await query
+            .OrderByDescending(s => s.FechaSolicitud)
+            .ToListAsync();
+
+        return Ok(solicitudes);
+    }
+
+    /// <summary>
     /// Obtiene una solicitud de adopción por su identificador, para que el usuario siga su estado.
     /// </summary>
     /// <param name="id">Identificador de la solicitud.</param>

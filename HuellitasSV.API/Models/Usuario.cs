@@ -25,4 +25,8 @@ public class Usuario
     [MaxLength(100)]
     [Column("nombre")]
     public string Nombre { get; set; } = string.Empty;
+
+    /// <summary>Navegación a la cuenta de acceso asociada.</summary>
+    [ForeignKey(nameof(IdCuenta))]
+    public Cuenta? Cuenta { get; set; }
 }

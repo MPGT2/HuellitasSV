@@ -52,6 +52,7 @@ public class MascotasController : ControllerBase
     {
         var mascotas = await _context.Mascota
             .AsNoTracking()
+            .Include(m => m.Refugio)
             .Where(m => m.Estado == "disponible")
             .OrderByDescending(m => m.FechaRegistro)
             .Select(m => new MascotaRespuestaDto
@@ -65,17 +66,17 @@ public class MascotasController : ControllerBase
                 Estado = m.Estado,
                 FechaRegistro = m.FechaRegistro,
                 ImagenUrl = m.ImagenUrl,
-                Refugio = new RefugioRespuestaDto
+                Refugio = m.Refugio != null ? new RefugioRespuestaDto
                 {
-                    IdRefugio = m.IdRefugio,
-                    NombreOrganizacion = m.Refugio!.NombreOrganizacion,
-                    Departamento = m.Refugio!.Departamento,
-                    Municipio = m.Refugio!.Municipio,
-                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.IdRefugio),
+                    IdRefugio = m.Refugio.IdRefugio,
+                    NombreOrganizacion = m.Refugio.NombreOrganizacion,
+                    Departamento = m.Refugio.Departamento,
+                    Municipio = m.Refugio.Municipio,
+                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
                     PromedioEstrellas = _context.Calificaciones
-                        .Where(c => c.IdRefugio == m.IdRefugio)
+                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
                         .Average(c => (double?)c.Estrellas)
-                }
+                } : null
             })
             .ToListAsync();
 
@@ -237,17 +238,17 @@ public class MascotasController : ControllerBase
                 Estado = m.Estado,
                 FechaRegistro = m.FechaRegistro,
                 ImagenUrl = m.ImagenUrl,
-                Refugio = new RefugioRespuestaDto
+                Refugio = m.Refugio != null ? new RefugioRespuestaDto
                 {
-                    IdRefugio = m.IdRefugio,
-                    NombreOrganizacion = m.Refugio!.NombreOrganizacion,
-                    Departamento = m.Refugio!.Departamento,
-                    Municipio = m.Refugio!.Municipio,
-                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.IdRefugio),
+                    IdRefugio = m.Refugio.IdRefugio,
+                    NombreOrganizacion = m.Refugio.NombreOrganizacion,
+                    Departamento = m.Refugio.Departamento,
+                    Municipio = m.Refugio.Municipio,
+                    TotalCalificaciones = _context.Calificaciones.Count(c => c.IdRefugio == m.Refugio.IdRefugio),
                     PromedioEstrellas = _context.Calificaciones
-                        .Where(c => c.IdRefugio == m.IdRefugio)
+                        .Where(c => c.IdRefugio == m.Refugio.IdRefugio)
                         .Average(c => (double?)c.Estrellas)
-                }
+                } : null
             })
             .ToListAsync();
 

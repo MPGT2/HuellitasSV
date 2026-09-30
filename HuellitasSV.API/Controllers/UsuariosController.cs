@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using HuellitasSV.API.Data;
 using HuellitasSV.API.Models;
 
@@ -159,7 +161,149 @@ namespace HuellitasSV.API.Controllers
         }
 
         // ============================================================
-        // 2) REGLAS DE NEGOCIO PRIVADAS COMPARTIDAS
+        // 3) MÉTODOS [HttpGet] - Obtener perfil y actualizar
+        // ============================================================
+
+        /// <summary>
+        /// Obtiene el perfil del usuario autenticado.
+        /// </summary>
+        /// <returns>Perfil del usuario.</returns>
+        /// <response code="200">Perfil del usuario.</response>
+        /// <response code="404">Usuario no encontrado.</response>
+        [HttpGet("perfil")]
+        [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetPerfil()
+        {
+            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+                ? idUsuarioClaim
+                : 0;
+
+            if (idUsuarioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+            var usuario = await _context.Usuarios
+                .Include(u => u.Cuenta)
+                .FirstOrDefaultAsync(u => u.IdUsuario == idUsuarioToken);
+
+            if (usuario == null)
+                return NotFound(new { error = "Usuario no encontrado." });
+
+            return Ok(new
+            {
+                usuario.IdUsuario,
+                usuario.Nombre,
+                Correo = usuario.Cuenta?.Correo,
+                Rol = usuario.Cuenta?.Rol,
+                Estado = usuario.Cuenta?.Estado
+            });
+        }
+
+        /// <summary>
+        /// Actualiza el perfil del usuario autenticado.
+        /// </summary>
+        /// <param name="dto">Datos a actualizar (nombre, correo, contraseña).</param>
+        /// <returns>Perfil actualizado.</returns>
+        /// <response code="200">Perfil actualizado correctamente.</response>
+        /// <response code="400">Datos inválidos o correo ya existente.</response>
+        /// <response code="404">Usuario no encontrado.</response>
+        [HttpPut("perfil")]
+        [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> ActualizarPerfil(ActualizarPerfilUsuarioDto dto)
+        {
+            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+                ? idUsuarioClaim
+                : 0;
+
+            if (idUsuarioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+            var usuario = await _context.Usuarios
+                .Include(u => u.Cuenta)
+                .FirstOrDefaultAsync(u => u.IdUsuario == idUsuarioToken);
+
+            if (usuario == null)
+                return NotFound(new { error = "Usuario no encontrado." });
+
+            if (!string.IsNullOrEmpty(dto.Nombre))
+                usuario.Nombre = dto.Nombre.Trim();
+
+            var cuenta = usuario.Cuenta;
+            if (cuenta == null)
+                return NotFound(new { error = "La cuenta asociada no existe." });
+
+            if (!string.IsNullOrEmpty(dto.Correo))
+            {
+                var nuevoCorreo = dto.Correo.Trim().ToLowerInvariant();
+                var existeCorreo = await _context.Cuenta.AnyAsync(c => c.Correo == nuevoCorreo && c.IdCuenta != cuenta.IdCuenta);
+                if (existeCorreo)
+                    return BadRequest(new { error = "El correo ya está registrado por otra cuenta." });
+
+                cuenta.Correo = nuevoCorreo;
+            }
+
+            if (!string.IsNullOrEmpty(dto.Contrasena))
+            {
+                if (dto.Contrasena.Length < 8)
+                    return BadRequest(new { error = "La contraseña debe tener al menos 8 caracteres." });
+
+                cuenta.Contrasena = _hasher.HashPassword(cuenta, dto.Contrasena);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = "Perfil actualizado correctamente.",
+                usuario.IdUsuario,
+                usuario.Nombre,
+                cuenta.Correo,
+                cuenta.Rol,
+                cuenta.Estado
+            });
+        }
+
+        /// <summary>
+        /// Elimina la cuenta del usuario autenticado (soft delete - cambia estado a inactivo).
+        /// </summary>
+        /// <returns>Confirmación de eliminación.</returns>
+        /// <response code="200">Cuenta desactivada correctamente.</response>
+        /// <response code="404">Usuario no encontrado.</response>
+        [HttpDelete("perfil")]
+        [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(typeof(ActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> EliminarPerfil()
+        {
+            var idUsuarioToken = long.TryParse(User.FindFirstValue("idUsuario"), out var idUsuarioClaim)
+                ? idUsuarioClaim
+                : 0;
+
+            if (idUsuarioToken <= 0)
+                return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+            var usuario = await _context.Usuarios
+                .Include(u => u.Cuenta)
+                .FirstOrDefaultAsync(u => u.IdUsuario == idUsuarioToken);
+
+            if (usuario == null)
+                return NotFound(new { error = "Usuario no encontrado." });
+
+            var cuenta = usuario.Cuenta;
+            if (cuenta != null)
+                cuenta.Estado = "inactivo";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { mensaje = "Cuenta desactivada correctamente." });
+        }
+
+        // ============================================================
+        // 4) REGLAS DE NEGOCIO PRIVADAS COMPARTIDAS
         // ============================================================
 
         /// <summary>
@@ -245,5 +389,25 @@ namespace HuellitasSV.API.Controllers
         /// <summary>Contraseña de la cuenta.</summary>
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
         public string Contrasena { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Datos para actualizar el perfil del usuario autenticado.
+    /// </summary>
+    public class ActualizarPerfilUsuarioDto
+    {
+        /// <summary>Nuevo nombre del usuario (opcional).</summary>
+        [MaxLength(100, ErrorMessage = "El nombre no puede exceder 100 caracteres.")]
+        public string? Nombre { get; set; }
+
+        /// <summary>Nuevo correo de la cuenta (opcional).</summary>
+        [EmailAddress(ErrorMessage = "El correo no tiene un formato válido.")]
+        [MaxLength(150, ErrorMessage = "El correo no puede exceder 150 caracteres.")]
+        public string? Correo { get; set; }
+
+        /// <summary>Nueva contraseña de la cuenta (opcional, mínimo 8 caracteres).</summary>
+        [MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres.")]
+        [MaxLength(255, ErrorMessage = "La contraseña no puede exceder 255 caracteres.")]
+        public string? Contrasena { get; set; }
     }
 }

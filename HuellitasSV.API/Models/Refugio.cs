@@ -63,4 +63,8 @@ public class Refugio
     [MaxLength(20)]
     [Column("estado_aprobacion")]
     public string EstadoAprobacion { get; set; } = "pendiente";
+
+    /// <summary>Navegación a la cuenta de acceso asociada.</summary>
+    [ForeignKey(nameof(IdCuenta))]
+    public Cuenta? Cuenta { get; set; }
 }

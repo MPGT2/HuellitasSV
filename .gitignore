@@ -17,4 +17,6 @@ appsettings.Local.json
 **/secrets.json
 .env
 .env.*
-!)
+
+# Exports de OpenAPI generados (no son fuente)
+HuellitasSV.API/swagger*.json

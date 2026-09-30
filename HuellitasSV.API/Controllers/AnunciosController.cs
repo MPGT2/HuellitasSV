@@ -179,6 +179,103 @@ public class AnunciosController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Obtiene un anuncio por su identificador.
+    /// </summary>
+    /// <param name="id">Identificador del anuncio.</param>
+    /// <returns>El anuncio encontrado o NotFound si no existe.</returns>
+    /// <response code="200">Anuncio encontrado.</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetAnuncio(long id)
+    {
+        await ActualizarVencidosAsync();
+
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        return Ok(new
+        {
+            anuncio.IdAnuncio,
+            anuncio.NombreTienda,
+            anuncio.ContactoTienda,
+            anuncio.Latitud,
+            anuncio.Longitud,
+            anuncio.ImagenUrl,
+            anuncio.Descripcion,
+            anuncio.Precio,
+            anuncio.FechaInicio,
+            anuncio.FechaFin,
+            anuncio.PagoConfirmado,
+            anuncio.Estado,
+            anuncio.FechaAprobacion,
+            anuncio.FechaCreacion
+        });
+    }
+
+    /// <summary>
+    /// Actualiza un anuncio (solo administrador).
+    /// </summary>
+    /// <param name="id">Identificador del anuncio.</param>
+    /// <param name="dto">Datos a actualizar.</param>
+    /// <returns>Anuncio actualizado.</returns>
+    /// <response code="200">Anuncio actualizado correctamente.</response>
+    /// <response code="400">Datos inválidos.</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ActualizarAnuncio(long id, [FromBody] CrearAnuncioDto dto)
+    {
+        if (dto.FechaFin <= dto.FechaInicio)
+            return BadRequest(new { error = "La fecha de fin debe ser posterior a la fecha de inicio." });
+
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        anuncio.NombreTienda = dto.NombreTienda;
+        anuncio.ContactoTienda = dto.ContactoTienda;
+        anuncio.Latitud = dto.Latitud;
+        anuncio.Longitud = dto.Longitud;
+        anuncio.ImagenUrl = dto.ImagenUrl;
+        anuncio.Descripcion = dto.Descripcion;
+        anuncio.Precio = dto.Precio;
+        anuncio.FechaInicio = dto.FechaInicio;
+        anuncio.FechaFin = dto.FechaFin;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            mensaje = "Anuncio actualizado correctamente.",
+            anuncio.IdAnuncio,
+            anuncio.NombreTienda,
+            anuncio.Estado
+        });
+    }
+
+    /// <summary>
+    /// Elimina un anuncio (solo administrador).
+    /// </summary>
+    /// <param name="id">Identificador del anuncio.</param>
+    /// <returns>Confirmación de eliminación.</returns>
+    /// <response code="200">Anuncio eliminado correctamente.</response>
+    /// <response code="404">Anuncio no encontrado.</response>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> EliminarAnuncio(long id)
+    {
+        var anuncio = await _context.Anuncios.FindAsync(id);
+        if (anuncio == null)
+            return NotFound(new { error = "Anuncio no encontrado." });
+
+        _context.Anuncios.Remove(anuncio);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Anuncio eliminado correctamente." });
+    }
+
     // -------------------------------------------------------------------------
     // 2) MÉTODOS [HttpPost]
     // -------------------------------------------------------------------------
