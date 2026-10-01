@@ -411,9 +411,7 @@ export default function RefugioDashboardScreen() {
               ? solicitudes
               : reportes
         }
-        keyExtractor={(item) =>
-          (item.idMascota ?? item.idSolicitud ?? item.idReporte)?.toString()
-        }
+        keyExtractor={(item, index) => index.toString()}
         renderItem={
           activeTab === 'mascotas'
             ? renderMascota

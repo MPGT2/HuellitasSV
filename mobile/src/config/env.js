@@ -28,10 +28,8 @@ function fromHostUri() {
 }
 
 function fromPlatform() {
-  // 10.0.2.2 es el alias que usa el emulador de Android para su host.
-  if (Platform.OS === 'android') return `http://10.0.2.2:${API_PORT}/api`;
-  // El simulador de iOS comparte la red del host, asi que localhost funciona.
-  return `http://localhost:${API_PORT}/api`;
+  // Retornar directamente la URL de Ngrok para que funcione en el APK del teléfono físico
+  return 'https://herself-crystal-overthrow.ngrok-free.dev/api';
 }
 
 const override = fromEnv();

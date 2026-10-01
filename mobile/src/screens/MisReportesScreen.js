@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   RefreshControl,
@@ -56,6 +57,28 @@ export default function MisReportesScreen() {
     }, [cargar]),
   );
 
+  const confirmarEliminar = (reporte) => {
+    Alert.alert(
+      'Eliminar reporte',
+      '¿Seguro que quieres eliminar este reporte? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.eliminarReporte(reporte.idReporte);
+              cargar();
+            } catch (err) {
+              Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const renderReporte = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -77,6 +100,23 @@ export default function MisReportesScreen() {
             {item.estado}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => nav.navigate('ReporteForm', { reporte: item })}
+        >
+          <Ionicons name="create-outline" size={16} color={colors.primary} />
+          <Text style={styles.actionText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => confirmarEliminar(item)}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          <Text style={[styles.actionText, styles.actionTextDanger]}>Eliminar</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -122,7 +162,7 @@ export default function MisReportesScreen() {
 
       <FlatList
         data={reportes}
-        keyExtractor={(item) => item.idReporte.toString()}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderReporte}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -265,6 +305,29 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  actionTextDanger: {
+    color: colors.danger,
   },
   emptyContainer: {
     alignItems: 'center',

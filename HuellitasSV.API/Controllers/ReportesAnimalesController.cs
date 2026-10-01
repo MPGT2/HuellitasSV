@@ -191,6 +191,84 @@ public class ReportesAnimalesController : ControllerBase
     }
 
     /// <summary>
+    /// Actualiza un reporte de animal callejero del usuario autenticado (HU-14).
+    /// Solo se modifican los campos enviados; la foto es opcional y, si llega, reemplaza a la anterior.
+    /// </summary>
+    /// <param name="id">Identificador del reporte.</param>
+    /// <param name="dto">Campos opcionales a modificar: descripción, ubicación y foto.</param>
+    /// <returns>El reporte actualizado, o un error de validación/autorización.</returns>
+    [HttpPut("{id:int}")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ReporteAnimal>> PutReporte(int id, [FromForm] ActualizarReporteDto dto)
+    {
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
+
+        if (idUsuarioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+        var reporte = await _context.ReportesAnimales.FindAsync(id);
+
+        if (reporte is null)
+            return NotFound(new { error = "El reporte indicado no existe." });
+
+        // [SEGURIDAD] El usuario solo puede modificar sus propios reportes.
+        if (reporte.IdUsuario != idUsuarioToken)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "El reporte no le pertenece." });
+
+        if (!string.IsNullOrWhiteSpace(dto.Descripcion))
+            reporte.Descripcion = dto.Descripcion;
+        if (dto.Latitud.HasValue)
+            reporte.Latitud = dto.Latitud.Value;
+        if (dto.Longitud.HasValue)
+            reporte.Longitud = dto.Longitud.Value;
+
+        // La foto es opcional: si se sube una nueva, reemplaza a la anterior.
+        if (dto.Foto is not null && dto.Foto.Length > 0)
+        {
+            try
+            {
+                reporte.FotoUrl = await _archivos.GuardarAsync(dto.Foto, "reportes") ?? reporte.FotoUrl;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(reporte);
+    }
+
+    /// <summary>
+    /// Elimina un reporte de animal callejero del usuario autenticado (HU-14).
+    /// </summary>
+    /// <param name="id">Identificador del reporte.</param>
+    /// <returns>Confirmación de eliminación, o un error de autorización.</returns>
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> DeleteReporte(int id)
+    {
+        var idUsuarioToken = _usuarioActual.ObtenerUsuarioId();
+
+        if (idUsuarioToken <= 0)
+            return Unauthorized(new { error = "El token no incluye el perfil de usuario asociado." });
+
+        var reporte = await _context.ReportesAnimales.FindAsync(id);
+
+        if (reporte is null)
+            return NotFound(new { error = "El reporte indicado no existe." });
+
+        // [SEGURIDAD] El usuario solo puede eliminar sus propios reportes.
+        if (reporte.IdUsuario != idUsuarioToken)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "El reporte no le pertenece." });
+
+        _context.ReportesAnimales.Remove(reporte);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Reporte eliminado del sistema." });
+    }
+
+    /// <summary>
     /// Calcula la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine.
     /// </summary>
     /// <param name="lat1">Latitud del primer punto.</param>
@@ -245,5 +323,31 @@ public class CrearReporteDto
     public string? FotoUrl { get; set; }
 
     /// <summary>Archivo de la foto del animal (opcional si se envía FotoUrl).</summary>
+    public IFormFile? Foto { get; set; }
+}
+
+/// <summary>
+/// Datos para actualizar un reporte de animal callejero (HU-14) por multipart/form-data.
+/// Todos los campos son opcionales: solo se modifican los enviados.
+/// </summary>
+public class ActualizarReporteDto
+{
+    /// <summary>Descripción del animal y su situación.</summary>
+    [StringLength(1000)]
+    public string? Descripcion { get; set; }
+
+    /// <summary>Latitud de donde fue visto el animal.</summary>
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public double? Latitud { get; set; }
+
+    /// <summary>Longitud de donde fue visto el animal.</summary>
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public double? Longitud { get; set; }
+
+    /// <summary>URL externa de la foto (opcional; se ignora si se sube el archivo "Foto").</summary>
+    [StringLength(500)]
+    public string? FotoUrl { get; set; }
+
+    /// <summary>Archivo de la foto del animal (opcional; reemplaza la anterior si se envía).</summary>
     public IFormFile? Foto { get; set; }
 }

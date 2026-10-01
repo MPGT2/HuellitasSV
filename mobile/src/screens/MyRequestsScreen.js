@@ -192,7 +192,7 @@ export default function MyRequestsScreen() {
 
       <FlatList
         data={solicitudes}
-        keyExtractor={(item) => item.idSolicitud.toString()}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderSolicitud}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

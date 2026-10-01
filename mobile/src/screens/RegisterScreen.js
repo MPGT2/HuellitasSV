@@ -16,6 +16,7 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { isValidAsset, getAssetInfo } from '../utils/fileHelpers';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -120,8 +121,18 @@ export default function RegisterScreen({ navigation, route }) {
       type: ['application/pdf', 'image/*'],
       copyToCacheDirectory: true,
     });
-    if (!res.canceled) {
-      setDocumento(res.assets[0]);
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      if (isValidAsset(asset)) {
+        setDocumento(asset);
+        // Log para debugging en desarrollo
+        if (__DEV__) {
+          const info = getAssetInfo(asset);
+          console.log('[RegisterScreen] Documento seleccionado:', info);
+        }
+      } else {
+        Alert.alert('Error', 'El archivo seleccionado no es válido.');
+      }
     }
   };
 

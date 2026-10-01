@@ -20,6 +20,7 @@ import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
 import { resolveImageUrl } from '../config/env';
 import { useAuth } from '../context/AuthContext';
+import { isValidAsset, getAssetInfo } from '../utils/fileHelpers';
 
 const OPCIONES_ESPECIE = [
   { valor: 'perro', label: 'Perro' },
@@ -100,7 +101,19 @@ export default function MascotaFormScreen({ navigation, route }) {
       allowsEditing: true,
       quality: 0.7,
     });
-    if (!res.canceled) setFoto(res.assets[0]);
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      if (isValidAsset(asset)) {
+        setFoto(asset);
+        // Log para debugging en desarrollo
+        if (__DEV__) {
+          const info = getAssetInfo(asset);
+          console.log('[MascotaForm] Foto seleccionada:', info);
+        }
+      } else {
+        Alert.alert('Error', 'El archivo seleccionado no es válido.');
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -112,7 +125,7 @@ export default function MascotaFormScreen({ navigation, route }) {
           Nombre: form.nombre.trim(),
           Especie: form.especie,
           Tamano: form.tamano,
-          EdadMeses: parseInt(form.edadMeses, 10),
+          EdadMeses: String(parseInt(form.edadMeses, 10)),
           EstadoSalud: form.estadoSalud,
         };
         if (estado && estado !== mascota.estado) {
@@ -120,14 +133,8 @@ export default function MascotaFormScreen({ navigation, route }) {
           if (justificacion.trim()) body.JustificacionCambioEstado = justificacion.trim();
         }
         // La imagen es opcional: si se eligio una nueva, reemplaza la anterior.
-        const imagen = foto
-          ? {
-              uri: foto.uri,
-              name: foto.fileName || 'mascota.jpg',
-              type: foto.mimeType || 'image/jpeg',
-            }
-          : null;
-        await api.actualizarMascota(mascota.idMascota, body, imagen);
+        // El servicio api.js ya se encarga de validar y construir el objeto correctamente
+        await api.actualizarMascota(mascota.idMascota, body, foto);
       } else {
         // Alta multipart. IdRefugio es obligatorio en el DTO aunque el backend
         // use el token: si la sesion no lo trae, no tiene sentido intentarlo.
@@ -146,14 +153,8 @@ export default function MascotaFormScreen({ navigation, route }) {
           EdadMeses: String(parseInt(form.edadMeses, 10)),
           EstadoSalud: form.estadoSalud,
         };
-        const imagen = foto
-          ? {
-              uri: foto.uri,
-              name: foto.fileName || 'mascota.jpg',
-              type: foto.mimeType || 'image/jpeg',
-            }
-          : null;
-        await api.registrarMascota(data, imagen);
+        // El servicio api.js ya se encarga de validar y construir el objeto correctamente
+        await api.registrarMascota(data, foto);
       }
       navigation.goBack();
     } catch (err) {

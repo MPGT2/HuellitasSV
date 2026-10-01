@@ -1,6 +1,7 @@
 // API Service for HuellitasSV Backend
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/env';
+import { buildFormDataFile } from '../utils/fileHelpers';
 
 const TOKEN_KEY = '@huellitas_token';
 const USER_KEY = '@huellitas_user';
@@ -43,12 +44,18 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
-    const isForm = options.body instanceof FormData;
+    
+    const isForm = options.body && (options.body instanceof FormData || options.body.append !== undefined);
 
+    // Construir headers: primero los de autenticación, luego los custom
     const headers = { ...this.getHeaders(options.auth !== false), ...options.headers };
+    
     // Con FormData la plataforma debe fijar el Content-Type con su boundary.
     // Dejar "application/json" aqui rompe el parseo multipart en el servidor.
-    if (isForm) delete headers['Content-Type'];
+    if (isForm) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
 
     const config = {
       ...options,
@@ -65,10 +72,11 @@ class ApiService {
       response = await fetch(url, config);
     } catch (error) {
       // fetch solo rechaza cuando no hubo respuesta (API apagada, IP mal,
-      // firewall). Un 4xx o 5xx es una respuesta valida y se reporta arriba.
+      // firewall). Un 4xx o 5xx es una respuesta valida y se reporta abajo.
       throw new Error(
         `No se pudo conectar con la API (${API_BASE_URL}). ` +
-          'Verifica que la API este corriendo con el perfil "lan" y que el telefono este en la misma red Wi-Fi.'
+          'Verifica que la API este corriendo con el perfil "lan" y que el telefono este en la misma red Wi-Fi. ' +
+          `Detalles: ${error.message}`
       );
     }
 
@@ -120,26 +128,22 @@ class ApiService {
   }
 
   async registerRefugio(nombreOrganizacion, correo, contrasena, departamento, municipio, contacto, documento) {
-    // El endpoint usa [FromForm]: todo viaja como multipart/form-data.
     const formData = new FormData();
-    formData.append('NombreOrganizacion', nombreOrganizacion);
-    formData.append('Correo', correo);
-    formData.append('Contrasena', contrasena);
-    formData.append('Departamento', departamento);
-    formData.append('Municipio', municipio);
-    formData.append('Contacto', contacto);
-    if (documento) {
+    formData.append('NombreOrganizacion', String(nombreOrganizacion));
+    formData.append('Correo', String(correo));
+    formData.append('Contrasena', String(contrasena));
+    formData.append('Departamento', String(departamento));
+    formData.append('Municipio', String(municipio));
+    formData.append('Contacto', String(contacto));
+    
+    if (documento && documento.uri) {
       formData.append('Documentacion', {
         uri: documento.uri,
-        type: documento.mimeType || 'application/octet-stream',
-        name: documento.name || 'documento.pdf',
+        type: documento.mimeType || 'application/pdf',
+        name: documento.fileName ? documento.fileName.split('/').pop() : 'documento.pdf',
       });
     }
-    return this.request('/Refugios/registro', {
-      method: 'POST',
-      body: formData,
-      auth: false,
-    });
+    return this.request('/Refugios/registro', { method: 'POST', body: formData, auth: false });
   }
 
   // User profile
@@ -232,47 +236,31 @@ class ApiService {
 
   async registrarMascota(data, imagen) {
     const formData = new FormData();
-    Object.keys(data).forEach((key) => {
+    // React Native lanza "Unsupported FormDataPart implementation" si recibe
+    // un número, booleano u objeto que no sea { uri, type, name }. Por eso cada
+    // valor primitivo pasa SIEMPRE por String() y el archivo se construye puro.
+    Object.keys(data || {}).forEach((key) => {
       const valor = data[key];
-      if (valor !== undefined && valor !== null) {
-        formData.append(key, String(valor));
-      }
+      if (valor === undefined || valor === null) return;
+      if (typeof valor === 'object') return;
+      formData.append(key, String(valor));
     });
-    if (imagen) {
-      formData.append('imagen', {
-        uri: imagen.uri,
-        type: imagen.type || 'image/jpeg',
-        name: imagen.name || 'mascota.jpg',
-      });
-    }
-    // No se fija Content-Type: la plataforma lo arma con el boundary correcto.
-    // Declararlo a mano produce "Missing boundary" en el servidor.
-    return this.request('/Mascotas', {
-      method: 'POST',
-      body: formData,
-    });
+    const archivo = imagen ? buildFormDataFile(imagen, 'mascota.jpg') : null;
+    if (archivo) formData.append('imagen', archivo);
+    return this.request('/Mascotas', { method: 'POST', body: formData });
   }
 
   async actualizarMascota(id, data, imagen) {
-    // El PUT usa [FromForm] en el backend: se envia multipart y la imagen es opcional.
     const formData = new FormData();
-    Object.keys(data).forEach((key) => {
+    Object.keys(data || {}).forEach((key) => {
       const valor = data[key];
-      if (valor !== undefined && valor !== null) {
-        formData.append(key, String(valor));
-      }
+      if (valor === undefined || valor === null) return;
+      if (typeof valor === 'object') return;
+      formData.append(key, String(valor));
     });
-    if (imagen) {
-      formData.append('imagen', {
-        uri: imagen.uri,
-        type: imagen.type || 'image/jpeg',
-        name: imagen.name || 'mascota.jpg',
-      });
-    }
-    return this.request(`/Mascotas/${id}`, {
-      method: 'PUT',
-      body: formData,
-    });
+    const archivo = imagen ? buildFormDataFile(imagen, 'mascota.jpg') : null;
+    if (archivo) formData.append('imagen', archivo);
+    return this.request(`/Mascotas/${id}`, { method: 'PUT', body: formData });
   }
 
   async eliminarMascota(id) {
@@ -329,22 +317,45 @@ class ApiService {
   }
 
   async crearReporte({ descripcion, latitud, longitud, fotoUrl }, foto) {
-    // multipart/form-data: la foto viaja como archivo; FotoUrl es el respaldo.
     const formData = new FormData();
-    formData.append('Descripcion', descripcion);
-    formData.append('Latitud', String(latitud));
-    formData.append('Longitud', String(longitud));
-    if (fotoUrl) formData.append('FotoUrl', fotoUrl);
-    if (foto) {
-      formData.append('Foto', {
-        uri: foto.uri,
-        type: foto.mimeType || 'image/jpeg',
-        name: foto.fileName || 'reporte.jpg',
-      });
+    // Todo número (como latitud/longitud) DEBE ser convertido a String.
+    if (descripcion !== undefined && descripcion !== null) {
+      formData.append('Descripcion', String(descripcion));
     }
-    return this.request('/ReportesAnimales', {
-      method: 'POST',
-      body: formData,
+    if (latitud !== undefined && latitud !== null) {
+      formData.append('Latitud', String(latitud));
+    }
+    if (longitud !== undefined && longitud !== null) {
+      formData.append('Longitud', String(longitud));
+    }
+    if (fotoUrl) formData.append('FotoUrl', String(fotoUrl));
+
+    const archivo = foto ? buildFormDataFile(foto, 'reporte.jpg') : null;
+    if (archivo) formData.append('Foto', archivo);
+    return this.request('/ReportesAnimales', { method: 'POST', body: formData });
+  }
+
+  async actualizarReporte(id, { descripcion, latitud, longitud, fotoUrl }, foto) {
+    const formData = new FormData();
+    if (descripcion !== undefined && descripcion !== null) {
+      formData.append('Descripcion', String(descripcion));
+    }
+    if (latitud !== undefined && latitud !== null) {
+      formData.append('Latitud', String(latitud));
+    }
+    if (longitud !== undefined && longitud !== null) {
+      formData.append('Longitud', String(longitud));
+    }
+    if (fotoUrl) formData.append('FotoUrl', String(fotoUrl));
+
+    const archivo = foto ? buildFormDataFile(foto, 'reporte.jpg') : null;
+    if (archivo) formData.append('Foto', archivo);
+    return this.request(`/ReportesAnimales/${id}`, { method: 'PUT', body: formData });
+  }
+
+  async eliminarReporte(id) {
+    return this.request(`/ReportesAnimales/${id}`, {
+      method: 'DELETE',
     });
   }
 

@@ -20,11 +20,20 @@ import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
+import { resolveImageUrl } from '../config/env';
+import { isValidAsset, getAssetInfo } from '../utils/fileHelpers';
 
-export default function ReporteFormScreen({ navigation }) {
-  const [descripcion, setDescripcion] = useState('');
+export default function ReporteFormScreen({ navigation, route }) {
+  const reporte = route.params?.reporte;
+  const editando = Boolean(reporte?.idReporte);
+
+  const [descripcion, setDescripcion] = useState(reporte?.descripcion ?? '');
   const [foto, setFoto] = useState(null);
-  const [ubicacion, setUbicacion] = useState(null);
+  const [ubicacion, setUbicacion] = useState(
+    reporte?.latitud != null && reporte?.longitud != null
+      ? { latitud: reporte.latitud, longitud: reporte.longitud }
+      : null,
+  );
   const [direccion, setDireccion] = useState('');
   const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -41,9 +50,19 @@ export default function ReporteFormScreen({ navigation }) {
       allowsEditing: true,
       quality: 0.6,
     });
-    if (!res.canceled) {
-      setFoto(res.assets[0]);
-      setErrors((prev) => ({ ...prev, foto: undefined }));
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      if (isValidAsset(asset)) {
+        setFoto(asset);
+        setErrors((prev) => ({ ...prev, foto: undefined }));
+        // Log para debugging en desarrollo
+        if (__DEV__) {
+          const info = getAssetInfo(asset);
+          console.log('[ReporteForm] Foto seleccionada:', info);
+        }
+      } else {
+        Alert.alert('Error', 'El archivo seleccionado no es válido.');
+      }
     }
   };
 
@@ -88,28 +107,28 @@ export default function ReporteFormScreen({ navigation }) {
   const handleSubmit = async () => {
     const next = {};
     if (!descripcion.trim()) next.descripcion = 'Describe al animal y su situación';
-    if (!foto) next.foto = 'Adjunta una foto del animal';
+    if (!editando && !foto) next.foto = 'Adjunta una foto del animal';
     if (!ubicacion) next.ubicacion = 'Marca la ubicación del animal';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     setSubmitting(true);
+    const datos = {
+      descripcion: descripcion.trim(),
+      latitud: String(ubicacion.latitud),
+      longitud: String(ubicacion.longitud),
+    };
     try {
-      await api.crearReporte(
-        {
-          descripcion: descripcion.trim(),
-          latitud: ubicacion.latitud,
-          longitud: ubicacion.longitud,
-        },
-        {
-          uri: foto.uri,
-          name: foto.fileName || 'reporte.jpg',
-          type: foto.mimeType || 'image/jpeg',
-        },
-      );
+      if (editando) {
+        await api.actualizarReporte(reporte.idReporte, datos, foto);
+      } else {
+        await api.crearReporte(datos, foto);
+      }
       Alert.alert(
-        '¡Reporte enviado!',
-        'Avisamos a los refugios cercanos (5 km) para que puedan atender el rescate.',
+        editando ? '¡Reporte actualizado!' : '¡Reporte enviado!',
+        editando
+          ? 'Los cambios fueron guardados.'
+          : 'Avisamos a los refugios cercanos (5 km) para que puedan atender el rescate.',
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (err) {
@@ -118,6 +137,8 @@ export default function ReporteFormScreen({ navigation }) {
       setSubmitting(false);
     }
   };
+
+  const previewUri = foto?.uri || resolveImageUrl(reporte?.fotoUrl);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -152,9 +173,9 @@ export default function ReporteFormScreen({ navigation }) {
           />
 
           <Text style={styles.label}>FOTO DEL ANIMAL</Text>
-          {foto ? (
+          {previewUri ? (
             <View style={styles.previewWrap}>
-              <Image source={{ uri: foto.uri }} style={styles.preview} />
+              <Image source={{ uri: previewUri }} style={styles.preview} />
               <TouchableOpacity style={styles.previewAction} onPress={elegirFoto} activeOpacity={0.7}>
                 <Ionicons name="camera" size={16} color={colors.onPrimary} />
                 <Text style={styles.previewActionText}>Cambiar</Text>
@@ -199,8 +220,14 @@ export default function ReporteFormScreen({ navigation }) {
           {errors.ubicacion ? <Text style={styles.error}>{errors.ubicacion}</Text> : null}
 
           <PrimaryButton
-            title={submitting ? 'Enviando...' : 'Enviar reporte'}
-            icon={submitting ? undefined : 'megaphone'}
+            title={
+              submitting
+                ? 'Enviando...'
+                : editando
+                  ? 'Guardar cambios'
+                  : 'Enviar reporte'
+            }
+            icon={submitting ? undefined : editando ? 'save-outline' : 'megaphone'}
             onPress={handleSubmit}
             disabled={submitting}
           />
