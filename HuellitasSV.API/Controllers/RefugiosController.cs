@@ -1,4 +1,4 @@
-// [HU-02] Michael Menendez: Controlador de refugios.
+// [HU-02] María Sion: Controlador de refugios.
 // HU-02: Registro de refugio (crea cuenta con rol "Refugio" y estado "pendiente") e inicio de sesión.
 // Los endpoints de aprobación y control (HU-24) se incorporarán en su respectiva rama feature.
 // Nota: los valores de estado se manejan en minúsculas (pendiente/aprobado/rechazado),
