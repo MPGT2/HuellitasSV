@@ -45,3 +45,4 @@ public class Notificacion
     /// </summary>
     public Usuario? Usuario { get; set; }
 }
+
