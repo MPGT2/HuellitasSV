@@ -1,4 +1,5 @@
 // [HU-13] Oscar Ramirez: Gestión y cobro de espacios publicitarios a tiendas (administrador).
+
 // Endpoints: GET listar, GET refugio/{id}, GET panel/monetizacion,
 // POST crear solicitud, POST {id}/aprobar, POST {id}/confirmar-pago, POST {id}/rechazar.
 // La expiración a "vencido" se recalcula automáticamente en cada consulta, ya que el
