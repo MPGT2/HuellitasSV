@@ -11,6 +11,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("DefaultConnection")))
+    throw new InvalidOperationException("Falta ConnectionStrings:DefaultConnection.");
+if (string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Key"]))
+    throw new InvalidOperationException("Falta Jwt:Key.");
 
 // La API trabaja siempre con formato invariante (punto decimal). Sin esto, el
 // model binding de los formularios (multipart) usa la cultura del sistema y una
@@ -131,7 +135,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(options =>
@@ -139,10 +143,6 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "HuellitasSV API v1");
         options.RoutePrefix = "swagger";
     });
-}
-else
-{
-    app.UseHttpsRedirection();
 }
 
 // [HU-03] Sirve las fotos subidas en wwwroot/imagenes/mascotas (ImagenUrl relativo).
