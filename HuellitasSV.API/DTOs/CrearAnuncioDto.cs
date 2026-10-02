@@ -45,3 +45,4 @@ public class CrearAnuncioDto
     [Required(ErrorMessage = "FechaFin es obligatoria.")]
     public DateTime FechaFin { get; set; }
 }
+
