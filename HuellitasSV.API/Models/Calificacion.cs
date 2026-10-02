@@ -49,3 +49,5 @@ public class Calificacion
     [ForeignKey(nameof(IdUsuario))]
     public Usuario? Usuario { get; set; }
 }
+
+//Revisado 
