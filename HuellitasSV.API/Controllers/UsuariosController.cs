@@ -1,4 +1,4 @@
-﻿// [HU-01] María Sion / Michael Menendez: Controlador de acceso para usuarios clientes.
+﻿// [HU-01] María Sion: Controlador de acceso para usuarios clientes.
 // Registro: crea la cuenta con rol "Usuario" y estado "activo" y confirma el registro.
 // Inicio de sesión: autentica por correo y contraseña; ante credenciales incorrectas
 // responde con un error genérico y ante cuentas inactivas o bloqueadas deniega el
