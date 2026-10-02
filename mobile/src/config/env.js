@@ -27,9 +27,13 @@ function fromHostUri() {
   return host ? `http://${host}:${API_PORT}/api` : null;
 }
 
+// URL de la API desplegada en Render. Se usa solo si no hay EXPO_PUBLIC_API_URL
+// (definida en eas.json para los builds) ni hostUri (que solo existe con Expo Go).
+// Cambia TU-SERVICIO por el nombre real del servicio en Render.
+const PRODUCTION_API_URL = 'https://TU-SERVICIO.onrender.com/api';
+
 function fromPlatform() {
-  // Retornar directamente la URL de Ngrok para que funcione en el APK del teléfono físico
-  return 'https://herself-crystal-overthrow.ngrok-free.dev/api';
+  return PRODUCTION_API_URL;
 }
 
 const override = fromEnv();
