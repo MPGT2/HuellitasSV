@@ -1,44 +1,45 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const API_PORT = 5299;
+// --- LÓGICA INTELIGENTE: 3 MODOS DE CONEXIÓN ---
 
+// Modo 1: Variable de entorno (para build de APK/producción)
+//   Define: EXPO_PUBLIC_API_URL=https://tu-url.com  al hacer expo start
+//   O en Windows: set EXPO_PUBLIC_API_URL=https://tu-url.com
+//   O en Mac: export EXPO_PUBLIC_API_URL=https://tu-url.com
 function fromEnv() {
   const raw = process.env.EXPO_PUBLIC_API_URL;
   if (!raw) return null;
   return raw.trim().replace(/\/+$/, '');
 }
 
+// Modo 2: IP automática desde QR (Expo Go - desarrollo)
+//   Escanea el QR con Expo Go y detecta la IP de tu PC automáticamente
 function fromHostUri() {
-  // Metro publica hostUri como "<ip>:<puerto>" (p. ej. "192.168.1.68:8081"),
-  // pero Expo Go lo entrega con esquema "exp://". El telefono ya conoce esa IP
-  // porque escaneo el QR, asi que es la forma mas fiable de deducir la IP de la
-  // PC: sobrevive a que el DHCP la cambie.
   const hostUri = Constants.expoConfig?.hostUri;
   if (!hostUri) return null;
 
-  // quita cualquier esquema (exp://, http://, ...), la ruta y el puerto.
-  // El puerto solo se quita si es numerico, para no romper un IPv6 como [::1].
   const host = hostUri
     .replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, '')
     .split('/')[0]
     .replace(/:\d+$/, '');
 
-  return host ? `http://${host}:${API_PORT}/api` : null;
+  return host ? `http://${host}:5299/api` : null;
 }
 
-function fromPlatform() {
-  // Retornar directamente la URL de Ngrok para que funcione en el APK del teléfono físico
-  return 'https://herself-crystal-overthrow.ngrok-free.dev/api';
-}
+// Modo 3: URL fija (MonsterASP o tu dominio)
+//   Pega aquí tu URL pública si la conoces
+const FIXED_URL = 'https://tu-api-monsterasp.monsterasp.com';
 
+// Prioridad: 1) Variable de entorno > 2) QR Expo Go > 3) URL fija
 const override = fromEnv();
 const detected = override ?? fromHostUri();
+const apiBaseUrl = detected ?? FIXED_URL;
 
-export const API_BASE_URL = detected ?? fromPlatform();
+export const API_BASE_URL = apiBaseUrl;
 
-// De donde salio la URL, util para diagnosticar fallos de conexion.
-export const API_RESOLUTION = override ? 'env' : detected ? 'auto' : 'fallback';
+// Historial: 'env' si pusiste tu propia URL, 'auto' si es desde QR, 'fixed' si usa la default
+export const API_RESOLUTION = override ? 'env' : fromHostUri() ? 'auto' : 'fixed';
 
 // Origen de la API sin el segmento "/api". Las imagenes y documentos se
 // guardan como ruta relativa ("/imagenes/...") y las sirve UseStaticFiles()

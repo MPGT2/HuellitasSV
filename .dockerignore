@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+mobile/
+Database/
+.git/
+.devcontainer/
+**/appsettings.Local.json
+**/secrets.json
+HuellitasSV.API/wwwroot/imagenes/*
