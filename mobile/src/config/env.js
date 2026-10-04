@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// URL de Render - YA DISPONIBLE (desplegado exitosamente)
+// URL de Render con puerto correcto (según logs de despliegue: "Now listening on: http://0.0.0.0:10000")
 const RENDER_URL = 'https://huellitassv.onrender.com';
 
 // Usar variable de entorno si se define (para builds personalizados),
