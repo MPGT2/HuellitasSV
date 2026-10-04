@@ -89,8 +89,20 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // BD en MonsterASP: pega la cadena en appsettings.json → ConnectionStrings:DefaultConnection
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// (tambien se puede sobreescribir en Render con ConnectionStrings__DefaultConnection).
+// EnableRetryOnFailure absorbe los cortes momentaneos de redtipicos de un
+// contenedor en la nube; el timeout sube a 60 s porque la BD esta en otro pais.
+builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
+{
+    var configuracion = serviceProvider.GetRequiredService<IConfiguration>();
+    var cadena = configuracion.GetConnectionString("DefaultConnection");
+
+    options.UseSqlServer(cadena, sql =>
+    {
+        sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+        sql.CommandTimeout(60);
+    });
+});
 
 // Acceso al HttpContext para resolver los claims del token una sola vez (ICurrentUserService).
 builder.Services.AddHttpContextAccessor();
@@ -130,6 +142,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Captura cualquier excepcion no controlada y la deja escrita en el log del
+// contenedor. Sin esto un fallo de base de datos devolvia un 500 sin detalle
+// y era imposible saber desde Render que estaba pasando.
+app.Use(async (contexto, siguiente) =>
+{
+    try
+    {
+        await siguiente();
+    }
+    catch (Exception excepcion)
+    {
+        app.Logger.LogError(
+            excepcion,
+            "Error no controlado al procesar {Metodo} {Ruta}",
+            contexto.Request.Method,
+            contexto.Request.Path);
+
+        if (contexto.Response.HasStarted)
+        {
+            throw;
+        }
+
+        contexto.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        contexto.Response.ContentType = "application/json; charset=utf-8";
+
+        // El detalle solo se devuelve en Development. En otros entornos el
+        // cliente recibe un mensaje generico y el detalle queda en el log.
+        if (app.Environment.IsDevelopment())
+        {
+            await contexto.Response.WriteAsJsonAsync(new
+            {
+                error = "Error interno del servidor.",
+                tipo = excepcion.GetType().Name,
+                detalle = excepcion.Message
+            });
+        }
+        else
+        {
+            await contexto.Response.WriteAsJsonAsync(new { error = "Error interno del servidor." });
+        }
+    }
+});
 
 if (app.Environment.IsDevelopment())
 {

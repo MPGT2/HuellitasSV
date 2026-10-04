@@ -1,19 +1,36 @@
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+// URL publica del backend desplegado en Render. El segmento "/api" es
+// obligatorio: los controladores usan [Route("api/[controller]")] y los
+// servicios del movil llaman a rutas como "/Auth/login" (sin "/api").
+const RENDER_URL = 'https://huellitassv.onrender.com/api';
 
-// URL de Render con puerto correcto (según logs de despliegue: "Now listening on: http://0.0.0.0:10000")
-const RENDER_URL = 'https://huellitassv.onrender.com';
+/**
+ * Normaliza una URL base para que siempre termine en "/api".
+ * Evita el error 404 cuando se define EXPO_PUBLIC_API_URL con el dominio
+ * pelado (por ejemplo "https://huellitassv.onrender.com").
+ */
+function normalizeApiBaseUrl(url) {
+  const trimmed = String(url).trim().replace(/\/+$/, '');
+  if (!trimmed) return null;
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+}
 
-// Usar variable de entorno si se define (para builds personalizados),
-// de lo contrario usar la URL de Render por defecto
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL || RENDER_URL;
+// La app siempre consume el backend publico de Render. La deteccion automatica
+// de la IP local se elimino a proposito: en Expo Go el hostUri siempre existe,
+// hacia que la app apuntara a http://<ip-local>:5299/api en vez de a la API
+// desplegada, que es justamente lo que hay que probar antes de entregar.
+// Para Developing contra la API local se define EXPO_PUBLIC_API_URL a mano.
+const fromEnv = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL || '');
 
-export const API_BASE_URL = apiBaseUrl;
+export const API_BASE_URL = fromEnv || normalizeApiBaseUrl(RENDER_URL);
 
 // Origen de la API sin el segmento "/api". Las imagenes y documentos se
 // guardan como ruta relativa ("/imagenes/...") y las sirve UseStaticFiles()
 // desde la raiz, no bajo /api.
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+// Como se resolvio la URL: 'env' si se sobrescribio, 'render' si se uso la
+// URL desplegada. Se muestra en el panel de diagnostico de la app.
+export const API_RESOLUTION = fromEnv ? 'env' : 'render';
 
 /**
  * Convierte la ruta relativa que guarda la BD en una URL que <Image> puede cargar.
