@@ -18,6 +18,7 @@ import RefugioProfileScreen from '../screens/RefugioProfileScreen';
 import ReporteFormScreen from '../screens/ReporteFormScreen';
 import MisReportesScreen from '../screens/MisReportesScreen';
 import AdminNoDisponibleScreen from '../screens/AdminNoDisponibleScreen';
+import NecesidadesScreen from '../screens/NecesidadesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -150,6 +151,11 @@ function RefugioStack() {
         name="MascotaForm"
         component={MascotaFormScreen}
         options={{ title: 'Mascota' }}
+      />
+      <Stack.Screen
+        name="Necesidades"
+        component={NecesidadesScreen}
+        options={{ title: 'Necesidades de donación' }}
       />
       <Stack.Screen name="RefugioProfile" component={RefugioProfileScreen} options={{ title: 'Refugio' }} />
     </Stack.Navigator>

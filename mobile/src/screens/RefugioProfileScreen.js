@@ -32,13 +32,17 @@ export default function RefugioProfileScreen() {
   const [miEstrellas, setMiEstrellas] = useState(0);
   const [miComentario, setMiComentario] = useState('');
   const [enviandoCalif, setEnviandoCalif] = useState(false);
+  const [necesidades, setNecesidades] = useState([]);
+  const [aportandoId, setAportandoId] = useState(null);
+  const [aporteCantidad, setAporteCantidad] = useState('');
+  const [enviandoAporte, setEnviandoAporte] = useState(false);
 
   useEffect(() => {
     let activo = true;
 
     const cargar = async () => {
       try {
-        const [perfil, pets, miCalif] = await Promise.all([
+        const [perfil, pets, miCalif, needs] = await Promise.all([
           idRefugio
             ? api.getRefugioById(idRefugio).catch(() => null)
             : Promise.resolve(null),
@@ -48,10 +52,14 @@ export default function RefugioProfileScreen() {
           idRefugio && isUsuario
             ? api.getMiCalificacion(idRefugio).catch(() => null)
             : Promise.resolve(null),
+          idRefugio
+            ? api.getNecesidadesPorRefugio(idRefugio).catch(() => [])
+            : Promise.resolve([]),
         ]);
         if (!activo) return;
         if (perfil) setRefugio((prev) => ({ ...prev, ...perfil }));
         setMascotas(Array.isArray(pets) ? pets : []);
+        setNecesidades(Array.isArray(needs) ? needs : []);
         if (miCalif) {
           setMiEstrellas(miCalif.estrellas || 0);
           setMiComentario(miCalif.comentario || '');
@@ -85,6 +93,29 @@ export default function RefugioProfileScreen() {
       Alert.alert('Error', err.message);
     } finally {
       setEnviandoCalif(false);
+    }
+  };
+
+  const enviarAporte = async (idNecesidad) => {
+    const cantidad = parseInt(aporteCantidad, 10);
+    if (!cantidad || cantidad <= 0) {
+      Alert.alert('Cantidad inválida', 'Ingresa una cantidad mayor a 0.');
+      return;
+    }
+    setEnviandoAporte(true);
+    try {
+      const r = await api.aportarNecesidad(idNecesidad, cantidad);
+      Alert.alert('Gracias', r?.mensaje || 'Aporte registrado.');
+      setAportandoId(null);
+      setAporteCantidad('');
+      const actualizadas = await api
+        .getNecesidadesPorRefugio(idRefugio)
+        .catch(() => necesidades);
+      if (Array.isArray(actualizadas)) setNecesidades(actualizadas);
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setEnviandoAporte(false);
     }
   };
 
@@ -197,6 +228,69 @@ export default function RefugioProfileScreen() {
               {enviandoCalif ? 'Enviando…' : 'Enviar calificación'}
             </Text>
           </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {necesidades.length > 0 ? (
+        <View style={styles.necesidadesBox}>
+          <Text style={styles.sectionTitle}>Necesidades ({necesidades.length})</Text>
+          {necesidades.map((n) => {
+            const pct =
+              n.cantidadRequerida > 0
+                ? Math.min(1, n.cantidadCubierta / n.cantidadRequerida)
+                : 0;
+            return (
+              <View key={n.idNecesidad} style={styles.necesidadCard}>
+                <Text style={styles.necesidadTipo}>{n.tipoInsumo}</Text>
+                {n.descripcion ? (
+                  <Text style={styles.necesidadDesc}>{n.descripcion}</Text>
+                ) : null}
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${pct * 100}%` }]} />
+                </View>
+                <Text style={styles.necesidadMeta}>
+                  {n.cantidadCubierta}/{n.cantidadRequerida} · {n.estado}
+                </Text>
+                {isUsuario ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.aportarBtn}
+                      onPress={() =>
+                        setAportandoId(
+                          aportandoId === n.idNecesidad ? null : n.idNecesidad,
+                        )
+                      }
+                    >
+                      <Text style={styles.aportarBtnText}>
+                        {aportandoId === n.idNecesidad ? 'Cancelar' : 'Aportar'}
+                      </Text>
+                    </TouchableOpacity>
+                    {aportandoId === n.idNecesidad ? (
+                      <View style={styles.aporteRow}>
+                        <TextInput
+                          style={styles.aporteInput}
+                          keyboardType="numeric"
+                          placeholder="Cantidad"
+                          placeholderTextColor={colors.placeholder}
+                          value={aporteCantidad}
+                          onChangeText={setAporteCantidad}
+                        />
+                        <TouchableOpacity
+                          style={styles.aporteConfirm}
+                          onPress={() => enviarAporte(n.idNecesidad)}
+                          disabled={enviandoAporte}
+                        >
+                          <Text style={styles.aporteConfirmText}>
+                            {enviandoAporte ? '...' : 'Donar'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                  </>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -397,5 +491,86 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.muted,
     textAlign: 'center',
+  },
+  necesidadesBox: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+  },
+  necesidadCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  necesidadTipo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    textTransform: 'capitalize',
+  },
+  necesidadDesc: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.surfaceMuted,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
+  necesidadMeta: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: spacing.xs,
+  },
+  aportarBtn: {
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  aportarBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  aporteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  aporteInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.text,
+  },
+  aporteConfirm: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+  },
+  aporteConfirmText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.onPrimary,
   },
 });

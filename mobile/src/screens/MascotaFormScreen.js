@@ -20,7 +20,7 @@ import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
 import { resolveImageUrl } from '../config/env';
 import { useAuth } from '../context/AuthContext';
-import { isValidAsset, getAssetInfo } from '../utils/fileHelpers';
+import { isValidAsset, getAssetInfo, prepareImageForUpload } from '../utils/fileHelpers';
 
 const OPCIONES_ESPECIE = [
   { valor: 'perro', label: 'Perro' },
@@ -104,7 +104,7 @@ export default function MascotaFormScreen({ navigation, route }) {
     if (!res.canceled && res.assets && res.assets[0]) {
       const asset = res.assets[0];
       if (isValidAsset(asset)) {
-        setFoto(asset);
+        setFoto(await prepareImageForUpload(asset));
         // Log para debugging en desarrollo
         if (__DEV__) {
           const info = getAssetInfo(asset);

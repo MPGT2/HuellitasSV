@@ -376,6 +376,10 @@ class ApiService {
     return this.request(`/NecesidadesDonacion?estado=${estado}`, { auth: false });
   }
 
+  async getNecesidadesPorRefugio(idRefugio, estado = 'activa') {
+    return this.request(`/NecesidadesDonacion/refugio/${idRefugio}?estado=${estado}`, { auth: false });
+  }
+
   async publicarNecesidad(tipoInsumo, descripcion, cantidadRequerida) {
     return this.request('/NecesidadesDonacion', {
       method: 'POST',

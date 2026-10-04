@@ -21,7 +21,12 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "REEMPLAZA_CON_TU_API_KEY_DE_GOOGLE_MAPS"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -45,6 +50,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "HuellitasSV usa tu ubicación para reportar animales en situación de calle."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

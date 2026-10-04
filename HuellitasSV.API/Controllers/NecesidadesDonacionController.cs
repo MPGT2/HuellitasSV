@@ -65,6 +65,37 @@ public class NecesidadesDonacionController : ControllerBase
     }
 
     /// <summary>
+    /// Lista las necesidades de un refugio en particular (para su perfil público).
+    /// Por defecto solo devuelve las "activas"; use estado=todas para no filtrar.
+    /// </summary>
+    /// <response code="200">Necesidades del refugio.</response>
+    [HttpGet("refugio/{idRefugio:long}")]
+    public async Task<IActionResult> GetPorRefugio(long idRefugio, [FromQuery] string? estado = "activa")
+    {
+        var query = _context.NecesidadesDonacion.Where(n => n.IdRefugio == idRefugio);
+
+        if (!string.IsNullOrEmpty(estado) && !estado.Equals("todas", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(n => n.Estado == estado.ToLower());
+
+        var necesidades = await query
+            .OrderByDescending(n => n.FechaPublicacion)
+            .Select(n => new
+            {
+                n.IdNecesidad,
+                n.IdRefugio,
+                n.TipoInsumo,
+                n.Descripcion,
+                n.CantidadRequerida,
+                n.CantidadCubierta,
+                n.Estado,
+                n.FechaPublicacion
+            })
+            .ToListAsync();
+
+        return Ok(necesidades);
+    }
+
+    /// <summary>
     /// Publica una nueva necesidad urgente de insumos para un refugio.
     /// Criterio de aceptación: al completar tipo de insumo y cantidad requerida,
     /// la necesidad queda visible para los usuarios con estado "activa".

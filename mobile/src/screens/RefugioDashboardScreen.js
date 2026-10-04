@@ -321,10 +321,20 @@ export default function RefugioDashboardScreen() {
           que no es una accion valida aqui: noenia nada. Ahora vive en la
           pestaña Perfil, que es donde el usuario lo espera. */}
       <View style={styles.header}>
-        <Text style={styles.welcome}>Bienvenido,</Text>
-        <Text style={styles.refugioName} numberOfLines={1}>
-          {user.nombre}
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.welcome}>Bienvenido,</Text>
+          <Text style={styles.refugioName} numberOfLines={1}>
+            {user.nombre}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.needsButton}
+          onPress={() => nav.navigate('Necesidades')}
+          activeOpacity={0.7}
+          accessibilityLabel="Necesidades de donación"
+        >
+          <Ionicons name="heart-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabs}>
@@ -473,11 +483,28 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.page,
     paddingVertical: spacing.lg,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  headerText: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  needsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   welcome: {
     fontSize: 13,

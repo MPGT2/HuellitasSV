@@ -3,6 +3,8 @@
  * Resuelve inconsistencias de expo-image-picker y expo-document-picker.
  */
 
+import * as ImageManipulator from 'expo-image-manipulator';
+
 /**
  * Extrae el tipo MIME del URI del archivo.
  * Fallback a tipos comunes basados en extensión si no está disponible.
@@ -138,6 +140,49 @@ export function buildFormDataFile(asset, defaultFileName = 'file.jpg') {
   } catch (error) {
     console.error('[fileHelpers] Error al construir archivo FormData:', error);
     return null;
+  }
+}
+
+/**
+ * Reduce el peso de una imagen antes de subirla: la reescala si es más ancha que
+ * maxWidth y la recomprime en JPEG.
+ *
+ * Subir una foto de varios MB por la red (sobre todo a través de ngrok) hace que
+ * la petición multipart se corte y el fetch falle con "Network request failed".
+ * Con esto el archivo pesa mucho menos y la subida termina.
+ *
+ * Si algo falla, devuelve el asset original para no bloquear la subida.
+ *
+ * @param {object} asset - Asset de ImagePicker (con uri/width/height).
+ * @param {object} [options]
+ * @param {number} [options.maxWidth] - Ancho máximo al que reescalar.
+ * @param {number} [options.compress] - Calidad JPEG (0 a 1).
+ * @returns {Promise<object>} asset listo para FormData ({ uri, type, name }).
+ */
+export async function prepareImageForUpload(asset, { maxWidth = 1280, compress = 0.6 } = {}) {
+  if (!asset?.uri) return asset;
+
+  try {
+    const actions = [];
+    if (asset.width && asset.width > maxWidth) {
+      actions.push({ resize: { width: maxWidth } });
+    }
+
+    const result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+      compress,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+
+    return {
+      uri: result.uri,
+      width: result.width,
+      height: result.height,
+      fileName: 'upload.jpg',
+      mimeType: 'image/jpeg',
+    };
+  } catch (error) {
+    console.warn('[fileHelpers] No se pudo optimizar la imagen, se sube la original', error);
+    return asset;
   }
 }
 

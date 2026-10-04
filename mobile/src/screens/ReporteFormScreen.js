@@ -21,7 +21,8 @@ import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
 import { resolveImageUrl } from '../config/env';
-import { isValidAsset, getAssetInfo } from '../utils/fileHelpers';
+import { isValidAsset, getAssetInfo, prepareImageForUpload } from '../utils/fileHelpers';
+import MapView, { Marker } from 'react-native-maps';
 
 export default function ReporteFormScreen({ navigation, route }) {
   const reporte = route.params?.reporte;
@@ -53,7 +54,7 @@ export default function ReporteFormScreen({ navigation, route }) {
     if (!res.canceled && res.assets && res.assets[0]) {
       const asset = res.assets[0];
       if (isValidAsset(asset)) {
-        setFoto(asset);
+        setFoto(await prepareImageForUpload(asset));
         setErrors((prev) => ({ ...prev, foto: undefined }));
         // Log para debugging en desarrollo
         if (__DEV__) {
@@ -219,6 +220,30 @@ export default function ReporteFormScreen({ navigation, route }) {
           </TouchableOpacity>
           {errors.ubicacion ? <Text style={styles.error}>{errors.ubicacion}</Text> : null}
 
+          {ubicacion ? (
+            <View style={styles.mapWrap}>
+              <MapView
+                style={styles.map}
+                region={{
+                  latitude: ubicacion.latitud,
+                  longitude: ubicacion.longitud,
+                  latitudeDelta: 0.008,
+                  longitudeDelta: 0.008,
+                }}
+                onPress={(e) => setUbicacion(e.nativeEvent.coordinate)}
+              >
+                <Marker
+                  coordinate={{ latitude: ubicacion.latitud, longitude: ubicacion.longitud }}
+                  draggable
+                  onDragEnd={(e) => setUbicacion(e.nativeEvent.coordinate)}
+                />
+              </MapView>
+              <Text style={styles.mapHint}>
+                Arrastra el pin o toca el mapa para ajustar la ubicación.
+              </Text>
+            </View>
+          ) : null}
+
           <PrimaryButton
             title={
               submitting
@@ -347,5 +372,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
     marginBottom: spacing.md,
+  },
+  mapWrap: {
+    marginBottom: spacing.xl,
+  },
+  map: {
+    width: '100%',
+    height: 180,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  mapHint: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: spacing.xs,
   },
 });
