@@ -53,18 +53,24 @@ public class HealthController : ControllerBase
 
         try
         {
-            var conectada = await _context.Database.CanConnectAsync(cancellationToken);
+            // CanConnectAsync se traga la excepcion y solo devuelve false, dejando
+            // el 500 sin causa. OpenConnectionAsync si lanza el error real de red
+            // (timeout, host inaccesible, credenciales), que es lo que hay que ver.
+            var conexion = _context.Database.GetDbConnection();
+            await conexion.OpenAsync(cancellationToken);
 
-            return StatusCode(
-                conectada ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable,
-                new
-                {
-                    estado = conectada ? "ok" : "error",
-                    bd = conectada ? "conectada" : "sin respuesta",
-                    servidor = _context.Database.GetDbConnection().DataSource,
-                    baseDatos = _context.Database.GetDbConnection().Database,
-                    utc = DateTime.UtcNow
-                });
+            var detalle = $"conectada a {conexion.DataSource} / {conexion.Database}";
+            await conexion.CloseAsync();
+
+            return StatusCode(StatusCodes.Status200OK, new
+            {
+                estado = "ok",
+                bd = "conectada",
+                servidor = conexion.DataSource,
+                baseDatos = conexion.Database,
+                mensaje = detalle,
+                utc = DateTime.UtcNow
+            });
         }
         catch (Exception ex)
         {
