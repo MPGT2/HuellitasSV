@@ -84,6 +84,21 @@ function extractFileName(asset, defaultName = 'file.jpg') {
 }
 
 /**
+ * Indica si Android/iOS pueden leer ese URI como archivo para subirlo.
+ *
+ * El modulo nativo de React Native solo abre file://, content:// y asset://.
+ * Cualquier otra cosa (por ejemplo el SharedRef que devuelve expo-image-manipulator
+ * en el SDK 57) hace que fetch reviente con
+ * "Unsupported FormDataPart implementation".
+ *
+ * @param {*} uri
+ * @returns {boolean}
+ */
+export function esUriDeArchivoLegible(uri) {
+  return typeof uri === 'string' && /^(file|content|asset):\/\//i.test(uri.trim());
+}
+
+/**
  * Construye un objeto compatible con FormData para React Native.
  * Resuelve el problema de propiedades inconsistentes de expo-image-picker v57.
  * 
@@ -103,23 +118,34 @@ function extractFileName(asset, defaultName = 'file.jpg') {
  * formData.append('imagen', file);
  */
 export function buildFormDataFile(asset, defaultFileName = 'file.jpg') {
-  // Validación: el asset debe existir y tener URI
+  // Validación: el asset debe existir y tener un URI que la plataforma sepa abrir
   if (!asset || !asset.uri) {
     console.warn('[fileHelpers] buildFormDataFile: asset inválido o sin URI', asset);
     return null;
   }
 
+  if (!esUriDeArchivoLegible(asset.uri)) {
+    console.warn(
+      '[fileHelpers] buildFormDataFile: el URI no es legible por el sistema de archivos, ' +
+        'se descarta el archivo',
+      asset.uri,
+    );
+    return null;
+  }
+
   try {
     // Extraer información del asset
-    const uri = asset.uri;
+    const uri = asset.uri.trim();
     const mimeType = extractMimeType(uri, asset.mimeType);
     const name = extractFileName(asset, defaultFileName);
 
-    // Construir objeto compatible con FormData de React Native
+    // React Native exige que las tres claves sean strings no vacias; si alguna
+    // llega como undefined, la parte del multipart se descarta y fetch falla con
+    // "Unsupported FormDataPart implementation".
     const file = {
       uri,
-      type: mimeType,
-      name,
+      type: String(mimeType || 'application/octet-stream'),
+      name: String(name || defaultFileName),
     };
 
     // Log para debugging (solo en desarrollo)
@@ -172,6 +198,17 @@ export async function prepareImageForUpload(asset, { maxWidth = 1280, compress =
       compress,
       format: ImageManipulator.SaveFormat.JPEG,
     });
+
+    // En el SDK 57 el manipulador trabaja con SharedRef y puede devolver un URI
+    // que React Native no sabe abrir. Si no es un archivo real, se sube el
+    // asset original del picker: pesa mas, pero la subida funciona.
+    if (!esUriDeArchivoLegible(result?.uri)) {
+      console.warn(
+        '[fileHelpers] El manipulador devolvio un URI no legible, se usa la original',
+        result?.uri,
+      );
+      return asset;
+    }
 
     return {
       uri: result.uri,

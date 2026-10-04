@@ -389,10 +389,13 @@ class ApiService {
     return this.request(`/NecesidadesDonacion/refugio/${idRefugio}?estado=${estado}`, { auth: false });
   }
 
-  async publicarNecesidad(tipoInsumo, descripcion, cantidadRequerida) {
+  // El DTO exige IdRefugio (validacion [Range(1, ...)]), aunque el controlador
+  // luego usa el del token JWT. Si no se manda, el model binding responde
+  // "IdRefugio debe ser mayor a 0" y la necesidad nunca se publica.
+  async publicarNecesidad(idRefugio, tipoInsumo, descripcion, cantidadRequerida) {
     return this.request('/NecesidadesDonacion', {
       method: 'POST',
-      body: { tipoInsumo, descripcion, cantidadRequerida },
+      body: { idRefugio, tipoInsumo, descripcion, cantidadRequerida },
     });
   }
 

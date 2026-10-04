@@ -52,9 +52,18 @@ export default function NecesidadesScreen() {
       Alert.alert('Cantidad inválida', 'Ingresa una cantidad mayor a 0.');
       return;
     }
+    // El backend exige el IdRefugio en el cuerpo: sin el, la validacion del DTO
+    // lo rechaza antes de usar el id del token.
+    if (!user?.idRefugio) {
+      Alert.alert(
+        'Sesión incompleta',
+        'No se pudo identificar tu refugio. Cierra sesión y vuelve a entrar.',
+      );
+      return;
+    }
     setPublicando(true);
     try {
-      await api.publicarNecesidad(tipoInsumo, descripcion.trim(), cant);
+      await api.publicarNecesidad(user.idRefugio, tipoInsumo, descripcion.trim(), cant);
       setDescripcion('');
       setCantidad('');
       await cargar();
