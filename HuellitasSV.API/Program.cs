@@ -5,7 +5,9 @@ using HuellitasSV.API.Security;
 using HuellitasSV.API.Services;
 using HuellitasSV.API.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -148,6 +150,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// MonsterASP termina el TLS con Let's Encrypt y reenvia la peticion a IIS/Kestrel.
+// Sin esto la app no ve el esquema original, cree estar en HTTP y el
+// UseHttpsRedirection entra en bucle de redirecciones.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // Captura cualquier excepcion no controlada y la deja escrita en el log del
 // contenedor. Sin esto un fallo de base de datos devolvia un 500 sin detalle
 // y era imposible saber desde Render que estaba pasando.
@@ -205,8 +215,29 @@ else
     app.UseHttpsRedirection();
 }
 
-// [HU-03] Sirve las fotos subidas en wwwroot/imagenes/mascotas (ImagenUrl relativo).
-app.UseStaticFiles();
+// [HU-03] Sirve las fotos subidas en /imagenes/... (ImagenUrl relativo).
+//
+// Los archivos van a App_Data/imagenes y NO a wwwroot a proposito: en MonsterASP
+// la aplicacion se despliega dentro de wwwroot, y UseStaticFiles() sobre wwwroot
+// dejaria descargables appsettings.json (con la contrasena de la BD) y los DLL.
+// Aqui se expone solo la carpeta de imagenes, en la misma URL de siempre.
+// La raiz del proveedor debe ser App_Data/imagenes porque ArchivoService guarda
+// en App_Data/imagenes/<carpeta> y devuelve la URL /imagenes/<carpeta>/<archivo>.
+var rutaImagenes = Path.Combine(
+    app.Environment.ContentRootPath, ArchivoService.CarpetaAlmacenamiento, "imagenes");
+Directory.CreateDirectory(rutaImagenes);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(rutaImagenes),
+    RequestPath = "/imagenes",
+    ServeUnknownFileTypes = false,
+    OnPrepareResponse = ctx =>
+    {
+        // Las imagenes son inmutables: el nombre incluye un Guid, se pueden cachear.
+        ctx.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
+    }
+});
 
 app.UseCors("PermitirFrontend");
 

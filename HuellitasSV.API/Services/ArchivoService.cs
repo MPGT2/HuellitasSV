@@ -4,14 +4,13 @@ using Microsoft.AspNetCore.Http;
 namespace HuellitasSV.API.Services;
 
 /// <summary>
-/// Única fuente de verdad para guardar archivos subidos (imágenes y documentos)
-/// en wwwroot/imagenes. Devuelve siempre una ruta relativa, que es la que se
-/// persiste en la base de datos y la que <c>app.UseStaticFiles()</c> sirve.
+/// Única fuente de verdad para guardar archivos subidos (imágenes y documentos).
+/// Devuelve siempre una ruta relativa, que es la que se persiste en la base de datos.
 /// </summary>
 public interface IArchivoService
 {
     /// <summary>
-    /// Guarda el archivo en wwwroot/imagenes/<paramref name="carpeta"/> con un nombre
+    /// Guarda el archivo en App_Data/imagenes/<paramref name="carpeta"/> con un nombre
     /// único (Guid) y devuelve su ruta relativa ("/imagenes/carpeta/archivo.ext").
     /// Devuelve null si no se recibió archivo.
     /// </summary>
@@ -24,6 +23,12 @@ public interface IArchivoService
 /// <inheritdoc />
 public class ArchivoService : IArchivoService
 {
+    /// <summary>
+    /// Carpeta (relativa al ContentRoot) donde se guardan los archivos subidos.
+    /// Está fuera de wwwroot para que no se sirvan como archivos estáticos públicos.
+    /// </summary>
+    public const string CarpetaAlmacenamiento = "App_Data";
+
     /// <summary>Tamaño máximo permitido por archivo: 10 MB.</summary>
     private const long MaxBytes = 10 * 1024 * 1024;
 
@@ -33,7 +38,7 @@ public class ArchivoService : IArchivoService
 
     private readonly IWebHostEnvironment _env;
 
-    /// <summary>Inicializa el servicio con el entorno web para resolver wwwroot.</summary>
+    /// <summary>Inicializa el servicio con el entorno web para resolver la carpeta de almacenamiento.</summary>
     public ArchivoService(IWebHostEnvironment env) => _env = env;
 
     /// <inheritdoc />
@@ -52,8 +57,9 @@ public class ArchivoService : IArchivoService
                 $"Extensión no permitida ({extension}). Se admiten: {string.Join(", ", ExtensionesPermitidas)}.");
         }
 
-        // wwwroot puede venir nulo en entornos de prueba; se cae a ContentRoot/wwwroot.
-        var raiz = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+        // App_Data en vez de wwwroot: en MonsterASP la app vive dentro de wwwroot y
+        // servirla como estático expondría appsettings.json y los ensamblados.
+        var raiz = Path.Combine(_env.ContentRootPath, CarpetaAlmacenamiento);
         var destino = Path.Combine(raiz, "imagenes", carpeta);
         Directory.CreateDirectory(destino);
 
