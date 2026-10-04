@@ -93,11 +93,10 @@ builder.Services.AddSwaggerGen(options =>
 // EnableRetryOnFailure absorbe los cortes momentaneos de redtipicos de un
 // contenedor en la nube; el timeout sube a 60 s porque la BD esta en otro pais.
 //
-// Encrypt=False: el SQL Server de MonsterASP usa un certificado que no proviene de
-// una autoridad publica y no negocia TLS con el OpenSSL del contenedor de Linux
-// (error 35 del TCP Provider, SqlException 258). Desde Windows si funciona con
-// cifrado; MonsterASP recomienda no cifrar en su red. Para exigir cifrado hay que
-// definir ConnectionStrings__DefaultConnection en Render con Encrypt=True.
+// MonsterASP usa un certificado que no proviene de una autoridad publica, por eso
+// la cadena incluye TrustServerCertificate=True (forma que exige su documentacion).
+// Si algun dia el handshake TLS falla en Linux, la causa no es la cadena: basta con
+// definir ConnectionStrings__DefaultConnection en Render usando Encrypt=False.
 builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
 {
     var configuracion = serviceProvider.GetRequiredService<IConfiguration>();
