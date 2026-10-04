@@ -92,6 +92,12 @@ builder.Services.AddSwaggerGen(options =>
 // (tambien se puede sobreescribir en Render con ConnectionStrings__DefaultConnection).
 // EnableRetryOnFailure absorbe los cortes momentaneos de redtipicos de un
 // contenedor en la nube; el timeout sube a 60 s porque la BD esta en otro pais.
+//
+// Encrypt=False: el SQL Server de MonsterASP usa un certificado que no proviene de
+// una autoridad publica y no negocia TLS con el OpenSSL del contenedor de Linux
+// (error 35 del TCP Provider, SqlException 258). Desde Windows si funciona con
+// cifrado; MonsterASP recomienda no cifrar en su red. Para exigir cifrado hay que
+// definir ConnectionStrings__DefaultConnection en Render con Encrypt=True.
 builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
 {
     var configuracion = serviceProvider.GetRequiredService<IConfiguration>();
