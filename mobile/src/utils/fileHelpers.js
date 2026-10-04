@@ -4,6 +4,7 @@
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
 
 /**
  * Extrae el tipo MIME del URI del archivo.
@@ -139,13 +140,17 @@ export function buildFormDataFile(asset, defaultFileName = 'file.jpg') {
     const mimeType = extractMimeType(uri, asset.mimeType);
     const name = extractFileName(asset, defaultFileName);
 
-    // React Native exige que las tres claves sean strings no vacias; si alguna
-    // llega como undefined, la parte del multipart se descarta y fetch falla con
-    // "Unsupported FormDataPart implementation".
-    const file = {
-      uri,
-      type: String(mimeType || 'application/octet-stream'),
+    // A partir del SDK 54 el fetch de Expo (winter) ya no acepta el formato
+    // {uri, type, name} de React Native: en convertFormData solo admite un Blob
+    // o un objeto con un metodo bytes(), y en cualquier otro caso lanza
+    // "Unsupported FormDataPart implementation". Se envuelve el File de
+    // expo-file-system, que si expone bytes(), y se copian name/type para que
+    // multipart escriba filename y content-type.
+    const archivo = new File(uri);
+    const parte = {
       name: String(name || defaultFileName),
+      type: String(mimeType || 'application/octet-stream'),
+      bytes: () => archivo.bytes(),
     };
 
     // Log para debugging (solo en desarrollo)
@@ -158,11 +163,11 @@ export function buildFormDataFile(asset, defaultFileName = 'file.jpg') {
           mimeType: asset.mimeType,
           type: asset.type,
         },
-        resultado: file,
+        resultado: parte,
       });
     }
 
-    return file;
+    return parte;
   } catch (error) {
     console.error('[fileHelpers] Error al construir archivo FormData:', error);
     return null;

@@ -18,13 +18,17 @@ import { radius, spacing } from '../theme/spacing';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const TIPOS = ['comida', 'medicina', 'cobijas', 'juguetes', 'otro'];
+// Estos valores son los que acepta el backend: PublicarNecesidadDto valida
+// TipoInsumo con la expresion regular ^(alimento|medicina|manta|accesorio)$.
+// Antes se ofrecian "comida", "cobijas", "juguetes" y "otro", que el servidor
+// rechazaba, y el usuario no podia publicar nada.
+const TIPOS = ['alimento', 'medicina', 'manta', 'accesorio'];
 
 export default function NecesidadesScreen() {
   const { user } = useAuth();
   const [necesidades, setNecesidades] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tipoInsumo, setTipoInsumo] = useState('comida');
+  const [tipoInsumo, setTipoInsumo] = useState('alimento');
   const [descripcion, setDescripcion] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [publicando, setPublicando] = useState(false);
