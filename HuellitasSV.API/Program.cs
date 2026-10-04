@@ -201,17 +201,24 @@ app.Use(async (contexto, siguiente) =>
     }
 });
 
-if (app.Environment.IsDevelopment())
+// La documentacion se publica tambien en produccion: es la URL navegable que
+// sirve para evidenciar que la API esta desplegada y funcionando
+// (https://huellitassv.runasp.net/swagger). Antes solo se habilitaba en
+// Development y en el hosting devolvia 404.
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "HuellitasSV API v1");
-        options.RoutePrefix = "swagger";
-    });
-}
-else
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "HuellitasSV API v1");
+    options.RoutePrefix = "swagger";
+    options.DocumentTitle = "HuellitasSV API";
+});
+
+if (!app.Environment.IsDevelopment()
+    && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("https_port")))
 {
+    // Solo se redirige si hay un puerto HTTPS real. En MonsterASP el TLS lo
+    // termina IIS con Let's Encrypt y no existe tal puerto: redirigir sin destino
+    // deja al cliente en un bucle de redirecciones y tumba el pool.
     app.UseHttpsRedirection();
 }
 
@@ -225,7 +232,19 @@ else
 // en App_Data/imagenes/<carpeta> y devuelve la URL /imagenes/<carpeta>/<archivo>.
 var rutaImagenes = Path.Combine(
     app.Environment.ContentRootPath, ArchivoService.CarpetaAlmacenamiento, "imagenes");
-Directory.CreateDirectory(rutaImagenes);
+
+try
+{
+    Directory.CreateDirectory(rutaImagenes);
+}
+catch (Exception ex)
+{
+    // En hosting compartido el pool puede no tener permiso de escritura en la raiz.
+    // Fallar aqui tumbaba toda la API, asi que se registra y sigue: las imagenes
+    // se serviran solo si la carpeta existe.
+    app.Logger.LogWarning(
+        ex, "No se pudo crear {Carpeta}. Las imagenes nuevas no podran guardarse.", rutaImagenes);
+}
 
 app.UseStaticFiles(new StaticFileOptions
 {
