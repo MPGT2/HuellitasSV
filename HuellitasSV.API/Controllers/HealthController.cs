@@ -89,6 +89,82 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
+    /// Prueba de red a bajo nivel: separa el fallo de DNS del fallo de conexion TCP.
+    /// </summary>
+    /// <remarks>
+    /// El error 258 del TCP Provider no distingue "no resuelve el nombre" de "el
+    /// puerto esta filtrado". Este endpoint hace las dos pruebas por separado e
+    /// informa el tiempo que tardo cada una.
+    /// </remarks>
+    /// <returns>Resultado de la resolucion DNS y del handshake TCP con el puerto 1433.</returns>
+    [HttpGet("red")]
+    public async Task<IActionResult> Red(CancellationToken cancellationToken)
+    {
+        var conexion = (Microsoft.Data.SqlClient.SqlConnection)_context.Database.GetDbConnection();
+        var servidor = conexion.DataSource;
+
+        // SqlConnection no expone el puerto; la cadena no lo define, asi que se
+        // usa el estandar de SQL Server. La prueba es solo de diagnostico.
+        const int puerto = 1433;
+
+        string? dns = null;
+        string? tcp = null;
+        bool dnsOk = false;
+        bool tcpOk = false;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var direcciones = await System.Net.Dns.GetHostAddressesAsync(servidor, cancellationToken);
+            dns = string.Join(", ", direcciones.Select(a => a.ToString()));
+            dnsOk = true;
+        }
+        catch (Exception ex)
+        {
+            dns = $"ERROR {ex.GetType().Name}: {ex.Message}";
+        }
+
+        var swDns = sw.ElapsedMilliseconds;
+
+        var cronometroTcp = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var cliente = new System.Net.Sockets.TcpClient();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(20));
+
+            await cliente.ConnectAsync(servidor, puerto, cts.Token);
+            tcp = $"conectado a {servidor}:{puerto}";
+            tcpOk = true;
+        }
+        catch (Exception ex)
+        {
+            tcp = $"ERROR {ex.GetType().Name}: {ex.Message}";
+        }
+
+        return StatusCode(
+            dnsOk && tcpOk ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable,
+            new
+            {
+                estado = dnsOk && tcpOk ? "ok" : "error",
+                servidor,
+                puerto,
+                dnsResuelve = dnsOk,
+                dns,
+                dnsMilisegundos = swDns,
+                tcpConecta = tcpOk,
+                tcp,
+                tcpMilisegundos = cronometroTcp.ElapsedMilliseconds,
+                conclusion = dnsOk
+                    ? (tcpOk
+                        ? "DNS y TCP funcionan: el fallo esta en la negociacion TDS/TLS o en las credenciales."
+                        : "El DNS resuelve pero el puerto TCP no acepta conexiones: filtrado por firewall o puerto cerrado.")
+                    : "El nombre del servidor no resuelve desde el contenedor: problema de DNS.",
+                utc = DateTime.UtcNow
+            });
+    }
+
+    /// <summary>
     /// Quita de un mensaje de error cualquier fragmento que huela a credenciales
     /// (cadena de conexion o contrasena) antes de devolverlo al cliente.
     /// </summary>
