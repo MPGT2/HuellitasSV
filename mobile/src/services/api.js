@@ -49,6 +49,7 @@ class ApiService {
 
     // Construir headers: primero los de autenticación, luego los custom
     const headers = { ...this.getHeaders(options.auth !== false), ...options.headers };
+    headers['Accept'] = 'application/json';
     
     // Con FormData la plataforma debe fijar el Content-Type con su boundary.
     // Dejar "application/json" aqui rompe el parseo multipart en el servidor.
@@ -71,12 +72,20 @@ class ApiService {
     try {
       response = await fetch(url, config);
     } catch (error) {
-      // fetch solo rechaza cuando no hubo respuesta (API apagada, IP mal,
-      // firewall). Un 4xx o 5xx es una respuesta valida y se reporta abajo.
+      // fetch solo rechaza cuando no hubo respuesta utilizable: la peticion
+      // nunca llego al servidor (red/DNS/TLS) o se corto a mitad (subida de
+      // archivo cortada, servidor que cierra la conexion). Un 4xx o 5xx es una
+      // respuesta valida y se reporta mas abajo, no entra por aqui.
+      const causa = error?.message || String(error);
+      const esTimeout = /timeout|timed out|aborted/i.test(causa);
       throw new Error(
-        `No se pudo conectar con la API (${API_BASE_URL}). ` +
-          'Verifica que la API este corriendo con el perfil "lan" y que el telefono este en la misma red Wi-Fi. ' +
-          `Detalles: ${error.message}`
+        `No se pudo obtener respuesta del servidor en ${url}\n` +
+          (esTimeout
+            ? 'La peticion tardo demasiado y se cancelo. Si es al adjuntar una ' +
+              'foto, prueba con una imagen mas pequena.'
+            : 'O no se pudo resolver el dominio, o la conexion se corto durante ' +
+              'la subida del archivo. Revisa tu senal o prueba otra imagen.') +
+          `\nDetalle: ${causa}`
       );
     }
 
